@@ -1,0 +1,37 @@
+# Environment files - NEVER commit API keys!
+.env
+.env.local
+.env.*.local
+
+# Logs and debug files
+*.log
+logs/
+game_logs/
+experiment_results/
+*.debug
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Test artifacts
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+*.bak

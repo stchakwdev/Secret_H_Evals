@@ -1,0 +1,28 @@
+{
+  "name": "test_experiment",
+  "description": "Quick test experiment with 2 games for validation",
+  "num_games": 2,
+  "max_parallel": 1,
+  "player_configs": [
+    {
+      "id": "player1",
+      "name": "Alice",
+      "model": "deepseek/deepseek-v3.2-exp"
+    },
+    {
+      "id": "player2",
+      "name": "Bob", 
+      "model": "deepseek/deepseek-v3.2-exp"
+    }
+  ],
+  "game_settings": {
+    "timeout_per_action": 30
+  },
+  "cost_limit_per_game": 0.01,
+  "total_cost_limit": 0.02,
+  "enable_web_monitoring": false,
+  "output_dir": "experiment_results",
+  "models_to_test": [
+    "deepseek/deepseek-v3.2-exp"
+  ]
+}

@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secret Hitler - Hybrid Game</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .header {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 1rem 2rem;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+        
+        .header .subtitle {
+            font-size: 1.1rem;
+            opacity: 0.8;
+        }
+        
+        .main-container {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 1fr 2fr 1fr;
+            grid-template-rows: auto 1fr auto;
+            gap: 1rem;
+            padding: 1rem 2rem;
+            height: calc(100vh - 120px);
+        }
+        
+        .status-panel {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 1rem;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .panel-title {
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .players-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        
+        .player-item {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 0.5rem;
+            border-radius: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .player-item.current {
+            background: rgba(76, 175, 80, 0.2);
+            border: 1px solid rgba(76, 175, 80, 0.4);
+        }
+        
+        .game-board {
+            grid-column: 2;
+            grid-row: 1 / -1;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 2rem;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+        
+        .policy-tracks {
+            display: flex;
+            justify-content: space-between;
+            gap: 2rem;
+        }
+        
+        .policy-track {
+            flex: 1;
+            text-align: center;
+        }
+        
+        .policy-track h3 {
+            margin-bottom: 1rem;
+            font-size: 1.3rem;
+        }
+        
+        .policy-squares {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: center;
+        }
+        
+        .policy-square {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+        
+        .policy-square.liberal {
+            background: #2196F3;
+            border-color: #1976D2;
+        }
+        
+        .policy-square.fascist {
+            background: #F44336;
+            border-color: #D32F2F;
+        }
+        
+        .government-info {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 1.5rem;
+            border-radius: 10px;
+            text-align: center;
+        }
+        
+        .government-roles {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 1rem;
+        }
+        
+        .role {
+            text-align: center;
+        }
+        
+        .role-title {
+            font-size: 0.9rem;
+            opacity: 0.7;
+            margin-bottom: 0.5rem;
+        }
+        
+        .role-name {
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+        
+        .action-panel {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 1rem;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .action-content {
+            text-align: center;
+        }
+        
+        .action-prompt {
+            margin-bottom: 1rem;
+            font-size: 1.1rem;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 6px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            min-width: 80px;
+        }
+        
+        .btn-primary {
+            background: #4CAF50;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #45a049;
+            transform: translateY(-2px);
+        }
+        
+        .btn-secondary {
+            background: #f44336;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #da190b;
+            transform: translateY(-2px);
+        }
+        
+        .btn-neutral {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        
+        .btn-neutral:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+        
+        .events-panel {
+            grid-row: 3;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .events-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+        
+        .event-item {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 0.5rem;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+        
+        .event-item .timestamp {
+            opacity: 0.6;
+            font-size: 0.8rem;
+            margin-right: 0.5rem;
+        }
+        
+        .connection-status {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: bold;
+        }
+        
+        .connection-status.connected {
+            background: #4CAF50;
+            color: white;
+        }
+        
+        .connection-status.disconnected {
+            background: #f44336;
+            color: white;
+        }
+        
+        .connection-status.connecting {
+            background: #FF9800;
+            color: white;
+        }
+        
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .main-container {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto auto auto auto;
+                gap: 0.5rem;
+                padding: 1rem;
+            }
+            
+            .game-board {
+                grid-column: 1;
+                grid-row: auto;
+                order: -1;
+            }
+            
+            .policy-tracks {
+                flex-direction: column;
+                gap: 1rem;
+            }
+            
+            .government-roles {
+                flex-direction: column;
+                gap: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="connection-status" id="connectionStatus">Connecting...</div>
+    
+    <div class="header">
+        <h1>🎩 SECRET HITLER</h1>
+        <div class="subtitle">Hybrid Game Interface</div>
+    </div>
+    
+    <div class="main-container">
+        <!-- Players Panel -->
+        <div class="status-panel">
+            <div class="panel-title">👥 Players</div>
+            <div class="players-list" id="playersList">
+                <div class="player-item">
+                    <span>Connecting...</span>
+                    <span>🔄</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Game Board -->
+        <div class="game-board">
+            <div class="policy-tracks">
+                <div class="policy-track">
+                    <h3>🔵 Liberal Policies</h3>
+                    <div class="policy-squares" id="liberalTrack">
+                        <div class="policy-square"></div>
+                        <div class="policy-square"></div>
+                        <div class="policy-square"></div>
+                        <div class="policy-square"></div>
+                        <div class="policy-square"></div>
+                    </div>
+                </div>
+                
+                <div class="policy-track">
+                    <h3>🔴 Fascist Policies</h3>
+                    <div class="policy-squares" id="fascistTrack">
+                        <div class="policy-square"></div>
+                        <div class="policy-square"></div>
+                        <div class="policy-square"></div>
+                        <div class="policy-square"></div>
+                        <div class="policy-square"></div>
+                        <div class="policy-square"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="government-info">
+                <h3>🏛️ Current Government</h3>
+                <div class="government-roles">
+                    <div class="role">
+                        <div class="role-title">President</div>
+                        <div class="role-name" id="presidentName">None</div>
+                    </div>
+                    <div class="role">
+                        <div class="role-title">Chancellor</div>
+                        <div class="role-name" id="chancellorName">None</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Action Panel -->
+        <div class="action-panel">
+            <div class="panel-title">🎯 Current Action</div>
+            <div class="action-content" id="actionContent">
+                <div class="action-prompt">Waiting for game to start...</div>
+            </div>
+        </div>
+        
+        <!-- Events Panel -->
+        <div class="status-panel events-panel">
+            <div class="panel-title">📝 Game Events</div>
+            <div class="events-list" id="eventsList">
+                <div class="event-item">
+                    <span class="timestamp">--:--:--</span>
+                    Waiting for connection...
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="game.js"></script>
+</body>
+</html>
