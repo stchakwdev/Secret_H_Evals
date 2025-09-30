@@ -35,3 +35,14 @@ Thumbs.db
 *.tmp
 *.temp
 *.bak
+*.bak*
+*.final
+*.backup
+
+# Development test files
+test_*.html
+test_*.py
+test_*.js
+debug_*.html
+quick_*.py
+fix_*.py
