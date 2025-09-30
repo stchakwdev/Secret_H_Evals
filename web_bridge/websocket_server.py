@@ -25,13 +25,13 @@ class GameWebSocketServer:
     async def start_server(self):
         """Start the WebSocket server."""
         logger.info(f"Starting WebSocket server on {self.host}:{self.port}")
-        
+
         self.running = True
         async with websockets.serve(self.handle_connection, self.host, self.port) as server:
             logger.info("WebSocket server started successfully")
             await asyncio.Future()  # Run forever
-    
-    async def handle_connection(self, websocket, path):
+
+    async def handle_connection(self, websocket):
         """Handle new WebSocket connection."""
         logger.info(f"New connection from {websocket.remote_address}")
         self.connections.add(websocket)

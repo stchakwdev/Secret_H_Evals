@@ -10,15 +10,48 @@ from dataclasses import dataclass, asdict
 import aiohttp
 import os
 from datetime import datetime, timedelta
+from pydantic import BaseModel, Field, ValidationError
+import logging
 
 from config.openrouter_config import (
-    OPENROUTER_CONFIG, 
+    OPENROUTER_CONFIG,
     OPENROUTER_MODELS,
     get_model_for_decision,
     get_model_config,
     estimate_cost,
     COST_LIMITS
 )
+
+logger = logging.getLogger(__name__)
+
+
+# === Pydantic Models for Structured AI Responses ===
+
+class AIReasoning(BaseModel):
+    """AI's private strategic reasoning."""
+    summary: str = Field(description="2-3 sentence strategic analysis")
+    full_analysis: Optional[str] = Field(None, description="Optional detailed reasoning")
+    confidence: float = Field(ge=0.0, le=1.0, description="Confidence in decision")
+    strategy: Optional[str] = Field(None, description="Current strategic plan")
+
+class RoleBeliefs(BaseModel):
+    """Probability distribution for a player's role."""
+    liberal: float = Field(ge=0.0, le=1.0, description="Probability player is Liberal")
+    fascist: float = Field(ge=0.0, le=1.0, description="Probability player is Fascist")
+    hitler: float = Field(ge=0.0, le=1.0, description="Probability player is Hitler")
+
+class AIDecisionResponse(BaseModel):
+    """Structured AI decision with reasoning and beliefs."""
+    reasoning: AIReasoning = Field(description="Private strategic reasoning")
+    beliefs: Dict[str, RoleBeliefs] = Field(
+        default_factory=dict,
+        description="Role probability estimates for each player"
+    )
+    action: str = Field(description="Specific game action to take")
+    public_statement: Optional[str] = Field(
+        None,
+        description="What AI says publicly (can be deceptive)"
+    )
 
 @dataclass
 class APIRequest:
@@ -45,6 +78,7 @@ class APIResponse:
     latency: float
     success: bool
     error: Optional[str] = None
+    structured_data: Optional[AIDecisionResponse] = None  # Parsed JSON decision
 
 class CostTracker:
     """Track API costs and enforce limits."""
@@ -201,6 +235,7 @@ class OpenRouterClient:
             "max_tokens": model_config.max_tokens,
             "temperature": temperature,
             "stream": False
+            # Note: response_format removed - let model respond naturally
         }
         
         start_time = time.time()
@@ -307,7 +342,7 @@ class OpenRouterClient:
                 )
     
     async def _process_success_response(
-        self, 
+        self,
         data: Dict,
         model_name: str,
         decision_type: str,
@@ -315,22 +350,29 @@ class OpenRouterClient:
         latency: float
     ) -> APIResponse:
         """Process successful API response with enhanced parsing and fallbacks."""
-        
+
         # Extract content with multiple fallback strategies
         content, extraction_error = self._extract_content_with_fallbacks(data)
-        
+
         # Extract usage with fallbacks and estimation
         prompt_tokens, completion_tokens, usage_error = self._extract_usage_with_fallbacks(
             data, content, model_name
         )
-        
+
         # Calculate cost
         cost = estimate_cost(prompt_tokens, completion_tokens, model_name)
-        
+
+        # Parse structured JSON from content
+        structured_data = None
+        if content:
+            structured_data = self._parse_structured_json(content)
+            if not structured_data:
+                logger.warning(f"Failed to parse structured JSON for {decision_type}")
+
         # Determine success status
         success = content is not None and len(content.strip()) > 0
         error_msg = None
-        
+
         if not success:
             error_details = []
             if extraction_error:
@@ -338,7 +380,7 @@ class OpenRouterClient:
             if usage_error:
                 error_details.append(f"Usage: {usage_error}")
             error_msg = "; ".join(error_details) if error_details else "Unknown parsing error"
-        
+
         # Track the request
         request = APIRequest(
             timestamp=datetime.now(),
@@ -353,11 +395,11 @@ class OpenRouterClient:
             error=error_msg
         )
         self.cost_tracker.add_request(request)
-        
+
         # Check for cost alerts
         if self.cost_tracker.should_alert():
             print(f"⚠️  Cost alert: Game cost ${self.cost_tracker.current_game_cost:.2f}")
-        
+
         return APIResponse(
             content=content or "",
             model=model_name,
@@ -366,7 +408,8 @@ class OpenRouterClient:
             cost=cost,
             latency=latency,
             success=success,
-            error=error_msg
+            error=error_msg,
+            structured_data=structured_data
         )
     
     def _extract_content_with_fallbacks(self, data: Dict) -> Tuple[Optional[str], Optional[str]]:
@@ -589,18 +632,107 @@ class OpenRouterClient:
                         choice = data['choices'][0]
                         if isinstance(choice, dict):
                             return True
-                
+
                 # Look for direct content fields
                 if any(key in data for key in ['content', 'text', 'response', 'output']):
                     return True
-                
+
                 # Any dictionary with string values might be valid
                 if any(isinstance(v, str) for v in data.values()):
                     return True
         except Exception:
             pass
-        
+
         return False
+
+    def _parse_structured_json(self, content: str) -> Optional[AIDecisionResponse]:
+        """
+        Parse and validate structured JSON response from LLM.
+
+        Uses Pydantic validation with fallback strategies for common issues.
+
+        Args:
+            content: Raw text content from LLM response
+
+        Returns:
+            Validated AIDecisionResponse or None if parsing fails
+        """
+        if not content or not content.strip():
+            return None
+
+        # Strategy 1: Direct JSON parsing
+        try:
+            data = json.loads(content)
+            return AIDecisionResponse(**data)
+        except (json.JSONDecodeError, ValidationError) as e:
+            logger.debug(f"Direct JSON parsing failed: {e}")
+
+        # Strategy 2: Extract JSON from markdown code blocks
+        try:
+            # Look for ```json ... ``` blocks
+            json_match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', content, re.DOTALL)
+            if json_match:
+                data = json.loads(json_match.group(1))
+                return AIDecisionResponse(**data)
+        except (json.JSONDecodeError, ValidationError) as e:
+            logger.debug(f"Markdown JSON extraction failed: {e}")
+
+        # Strategy 3: Find first JSON object in text
+        try:
+            # Look for JSON-like structure anywhere in content
+            json_match = re.search(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}', content, re.DOTALL)
+            if json_match:
+                data = json.loads(json_match.group(0))
+                return AIDecisionResponse(**data)
+        except (json.JSONDecodeError, ValidationError) as e:
+            logger.debug(f"Pattern-based JSON extraction failed: {e}")
+
+        # Strategy 4: Try to fix common JSON issues
+        try:
+            # Remove leading/trailing whitespace and control characters
+            cleaned = content.strip().strip('`').strip()
+
+            # Try to find and extract just the JSON object
+            if cleaned.startswith('{'):
+                # Find matching closing brace
+                brace_count = 0
+                for i, char in enumerate(cleaned):
+                    if char == '{':
+                        brace_count += 1
+                    elif char == '}':
+                        brace_count -= 1
+                        if brace_count == 0:
+                            json_str = cleaned[:i+1]
+                            data = json.loads(json_str)
+                            return AIDecisionResponse(**data)
+        except (json.JSONDecodeError, ValidationError) as e:
+            logger.debug(f"JSON cleanup and extraction failed: {e}")
+
+        # Strategy 5: Create minimal fallback structure
+        try:
+            # If we can't parse JSON, try to extract action and use defaults
+            action_match = re.search(r'"action"\s*:\s*"([^"]+)"', content)
+            if action_match:
+                action = action_match.group(1)
+
+                # Try to extract public_statement
+                statement_match = re.search(r'"public_statement"\s*:\s*"([^"]*)"', content)
+                statement = statement_match.group(1) if statement_match else None
+
+                return AIDecisionResponse(
+                    reasoning=AIReasoning(
+                        summary="JSON parsing failed, using fallback",
+                        confidence=0.5
+                    ),
+                    beliefs={},
+                    action=action,
+                    public_statement=statement
+                )
+        except Exception as e:
+            logger.debug(f"Fallback structure creation failed: {e}")
+
+        logger.warning(f"Could not parse structured JSON from content: {content[:200]}")
+        return None
     
     async def _handle_rate_limit(
         self,

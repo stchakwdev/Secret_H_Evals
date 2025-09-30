@@ -1,0 +1,1839 @@
+/**
+ * spectator.css - Styles for Secret Hitler Spectator UI
+ *
+ * Modern 3-panel layout with thought/speech bubbles and animations
+ * Author: Samuel Chakwera (stchakdev)
+ */
+
+/* === CSS Variables === */
+:root {
+    /* Role Colors (Phase 2 spec) */
+    --liberal-color: #10b981;
+    --fascist-color: #ef4444;
+    --hitler-color: #000000;
+    --neutral-color: #95A5A6;
+
+    /* Phase Colors (Phase 2 spec) */
+    --phase-nomination: #667eea;
+    --phase-voting: #ffd93d;
+    --phase-legislative: #f59e0b;
+    --phase-executive: #ef4444;
+    --phase-gameover: #10b981;
+
+    /* Background & Text */
+    --bg-primary: #1a1a1a;
+    --bg-secondary: #2a2a2a;
+    --bg-tertiary: #3a3a3a;
+    --text-primary: #ffffff;
+    --text-secondary: #b0b0b0;
+    --text-muted: #707070;
+
+    /* Bubble Colors */
+    --thought-bg: #2C3E50;
+    --speech-bg: #34495E;
+    --deception-bg: #C0392B;
+
+    /* Player Card States */
+    --active-glow: #fbbf24;
+    --speaking-pulse: #667eea;
+    --dead-opacity: 0.5;
+
+    /* Spacing */
+    --sidebar-width: 320px;
+    --sidebar-width-tablet: 280px;
+    --header-height: 60px;
+    --timeline-height: 120px;
+    --gap: 16px;
+
+    /* Animation */
+    --animation-duration: 0.3s;
+    --animation-easing: cubic-bezier(0.4, 0.0, 0.2, 1);
+}
+
+/* === Base Layout === */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    overflow: hidden;
+    height: 100vh;
+}
+
+/* === Main Grid (Phase 2 spec) === */
+#spectator-container {
+    display: grid;
+    grid-template-columns: var(--sidebar-width) 1fr var(--sidebar-width);
+    grid-template-rows: var(--header-height) 1fr var(--timeline-height);
+    grid-template-areas:
+        "header header header"
+        "left-panel main-stage right-panel"
+        "timeline timeline timeline";
+    height: 100vh;
+    gap: var(--gap);
+    padding: var(--gap);
+    box-sizing: border-box;
+}
+
+/* === Header === */
+#spectator-header {
+    grid-area: header;
+    background-color: var(--bg-secondary);
+    padding: 15px 20px;
+    border-bottom: 2px solid var(--liberal-color);
+    border-radius: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* Phase-specific header colors */
+#spectator-header.phase-nomination {
+    border-bottom-color: var(--phase-nomination);
+}
+
+#spectator-header.phase-voting {
+    border-bottom-color: var(--phase-voting);
+}
+
+#spectator-header.phase-legislative {
+    border-bottom-color: var(--phase-legislative);
+}
+
+#spectator-header.phase-executive {
+    border-bottom-color: var(--phase-executive);
+}
+
+#spectator-header.phase-gameover {
+    border-bottom-color: var(--phase-gameover);
+}
+
+.header-title {
+    font-size: 24px;
+    font-weight: bold;
+}
+
+.connection-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.status-indicator {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background-color: #27AE60;
+    animation: pulse 2s infinite;
+}
+
+.status-indicator.disconnected {
+    background-color: #E74C3C;
+    animation: none;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+/* === Left Panel: Game State === */
+#game-state-panel {
+    grid-area: left-panel;
+    background-color: var(--bg-secondary);
+    border-radius: 8px;
+    overflow-y: auto;
+    padding: 20px;
+}
+
+.panel-section {
+    margin-bottom: 25px;
+}
+
+.section-title {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 12px;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+/* Policy Board (Phase 2 Enhanced) */
+.policy-board {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.policy-track {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px;
+    background-color: rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+}
+
+.policy-label {
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.policy-label.liberal {
+    color: var(--liberal-color);
+}
+
+.policy-label.fascist {
+    color: var(--fascist-color);
+}
+
+.policy-dots {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.policy-dot {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 3px solid var(--bg-tertiary);
+    background-color: var(--bg-primary);
+    transition: all var(--animation-duration) var(--animation-easing);
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+}
+
+.policy-dot.enacted {
+    animation: policyEnact 0.5s ease-out;
+}
+
+.policy-dot.enacted.liberal {
+    background: linear-gradient(135deg, var(--liberal-color) 0%, #0ea570 100%);
+    border-color: var(--liberal-color);
+    box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+}
+
+.policy-dot.enacted.fascist {
+    background: linear-gradient(135deg, var(--fascist-color) 0%, #dc2626 100%);
+    border-color: var(--fascist-color);
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
+}
+
+/* Policy enactment animation */
+@keyframes policyEnact {
+    0% {
+        transform: scale(0.5);
+        opacity: 0;
+    }
+    50% {
+        transform: scale(1.2);
+    }
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+/* Policy track progress indicators */
+.policy-track-progress {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 8px;
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+.policy-count {
+    font-weight: 600;
+    font-size: 12px;
+}
+
+/* Players List */
+.players-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.player-card {
+    background-color: var(--bg-tertiary);
+    padding: 10px;
+    border-radius: 6px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: all var(--animation-duration) var(--animation-easing);
+    position: relative;
+}
+
+/* Player Card Visual States (Phase 2 spec) */
+.player-card.active {
+    transform: scale(1.05);
+    box-shadow: 0 0 20px var(--active-glow);
+    border: 2px solid var(--active-glow);
+}
+
+.player-card.speaking {
+    animation: pulseGlow 1.5s infinite;
+}
+
+.player-card.dead {
+    opacity: var(--dead-opacity);
+    filter: grayscale(100%);
+}
+
+.player-card.investigated::after {
+    content: "🔍";
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    font-size: 16px;
+}
+
+.player-name {
+    font-weight: 500;
+}
+
+.player-role {
+    font-size: 12px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    text-transform: uppercase;
+}
+
+.player-role.liberal {
+    background-color: var(--liberal-color);
+}
+
+.player-role.fascist {
+    background-color: var(--fascist-color);
+}
+
+.player-role.hitler {
+    background-color: var(--hitler-color);
+}
+
+/* === Center Panel: Main Stage === */
+#main-stage {
+    grid-area: main-stage;
+    background-color: var(--bg-primary);
+    border-radius: 8px;
+    overflow-y: auto;
+    padding: 20px;
+    position: relative;
+}
+
+.stage-section {
+    margin-bottom: 30px;
+}
+
+.stage-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid var(--bg-tertiary);
+}
+
+.stage-section-title {
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.clear-button {
+    background: none;
+    border: 1px solid var(--bg-tertiary);
+    color: var(--text-secondary);
+    padding: 5px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.2s;
+}
+
+.clear-button:hover {
+    background-color: var(--bg-tertiary);
+    color: var(--text-primary);
+}
+
+/* Bubble Container */
+.bubble-container {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    min-height: 200px;
+}
+
+/* === Thought Bubble === */
+.thought-bubble {
+    background-color: var(--thought-bg);
+    border-radius: 12px;
+    padding: 15px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    opacity: 0;
+    transform: translateY(20px);
+    transition: all var(--animation-duration) var(--animation-easing);
+}
+
+.thought-bubble.bubble-enter {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.thought-bubble.role-liberal {
+    border-left: 4px solid var(--liberal-color);
+}
+
+.thought-bubble.role-fascist {
+    border-left: 4px solid var(--fascist-color);
+}
+
+.thought-bubble.role-hitler {
+    border-left: 4px solid var(--hitler-color);
+}
+
+/* === Speech Bubble === */
+.speech-bubble {
+    background-color: var(--speech-bg);
+    border-radius: 12px;
+    padding: 15px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    opacity: 0;
+    transform: translateX(-20px);
+    transition: all var(--animation-duration) var(--animation-easing);
+}
+
+.speech-bubble.bubble-enter {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.speech-bubble.role-liberal {
+    border-left: 4px solid var(--liberal-color);
+}
+
+.speech-bubble.role-fascist {
+    border-left: 4px solid var(--fascist-color);
+}
+
+.speech-bubble.role-hitler {
+    border-left: 4px solid var(--hitler-color);
+}
+
+/* Deception Styling */
+.speech-bubble.deceptive {
+    background-color: var(--deception-bg);
+    animation: deception-pulse 2s infinite;
+}
+
+@keyframes deception-pulse {
+    0%, 100% {
+        box-shadow: 0 2px 8px rgba(192, 57, 43, 0.3);
+    }
+    50% {
+        box-shadow: 0 2px 16px rgba(192, 57, 43, 0.6);
+    }
+}
+
+/* Bubble Header */
+.bubble-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.player-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.player-name {
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.player-role, .decision-type, .statement-type {
+    font-size: 11px;
+    color: var(--text-muted);
+    padding: 2px 6px;
+    background-color: rgba(0, 0, 0, 0.2);
+    border-radius: 3px;
+}
+
+.timestamp {
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+/* Reasoning/Speech Content */
+.reasoning-summary, .speech-content {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+}
+
+.thought-icon, .speech-icon {
+    font-size: 20px;
+    flex-shrink: 0;
+}
+
+.reasoning-summary p, .speech-content p {
+    margin: 0;
+    line-height: 1.5;
+    font-size: 14px;
+}
+
+/* Confidence Meter */
+.confidence-meter {
+    margin-top: 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.confidence-label {
+    font-size: 12px;
+    color: var(--text-secondary);
+    min-width: 80px;
+}
+
+.confidence-bar {
+    flex: 1;
+    height: 8px;
+    background-color: rgba(0, 0, 0, 0.3);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.confidence-fill {
+    height: 100%;
+    transition: width 0.3s ease;
+}
+
+.confidence-fill.high {
+    background-color: #27AE60;
+}
+
+.confidence-fill.medium {
+    background-color: #F39C12;
+}
+
+.confidence-fill.low {
+    background-color: #E74C3C;
+}
+
+.confidence-value {
+    font-size: 12px;
+    font-weight: 600;
+    min-width: 40px;
+    text-align: right;
+}
+
+/* Beliefs Section */
+.beliefs-section {
+    margin-top: 12px;
+}
+
+.beliefs-header {
+    font-size: 13px;
+    font-weight: 600;
+    padding: 6px 8px;
+    background-color: rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.beliefs-header:hover {
+    background-color: rgba(0, 0, 0, 0.3);
+}
+
+.beliefs-content {
+    max-height: 500px;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+}
+
+.beliefs-content.collapsed {
+    max-height: 0;
+}
+
+.belief-entry {
+    padding: 8px;
+    margin-top: 8px;
+    background-color: rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
+}
+
+.belief-player-name {
+    font-weight: 500;
+    font-size: 13px;
+    margin-bottom: 6px;
+}
+
+.belief-probs {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.prob-bar-container {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+}
+
+.prob-label {
+    min-width: 60px;
+    color: var(--text-secondary);
+}
+
+.prob-bar {
+    flex: 1;
+    height: 6px;
+    background-color: rgba(0, 0, 0, 0.3);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.prob-fill {
+    height: 100%;
+    transition: width 0.3s ease;
+}
+
+.prob-value {
+    min-width: 35px;
+    text-align: right;
+    font-weight: 600;
+}
+
+/* Deception Indicator */
+.deception-indicator {
+    margin-top: 12px;
+    padding: 10px;
+    background-color: rgba(0, 0, 0, 0.3);
+    border-radius: 6px;
+    border: 1px solid rgba(231, 76, 60, 0.5);
+}
+
+.deception-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.deception-icon {
+    font-size: 16px;
+}
+
+.deception-label {
+    flex: 1;
+    color: #E74C3C;
+}
+
+.deception-score {
+    color: #E74C3C;
+    font-weight: 700;
+}
+
+.contradiction-summary {
+    margin-top: 6px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
+/* === Right Panel: Metrics === */
+#metrics-panel {
+    grid-area: right-panel;
+    background-color: var(--bg-secondary);
+    border-radius: 8px;
+    overflow-y: auto;
+    padding: 20px;
+}
+
+/* === Timeline Panel === */
+#timeline-panel {
+    grid-area: timeline;
+    background-color: var(--bg-secondary);
+    border-radius: 8px;
+    padding: 15px 20px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+/* Metric Cards (Phase 2 Enhanced) */
+.metric-card {
+    background: linear-gradient(135deg, var(--bg-tertiary) 0%, rgba(42, 42, 42, 0.8) 100%);
+    padding: 16px;
+    border-radius: 10px;
+    margin-bottom: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    transition: all var(--animation-duration) var(--animation-easing);
+}
+
+.metric-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+.metric-title {
+    font-size: 12px;
+    font-weight: 600;
+    margin-bottom: 12px;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.metric-value {
+    font-size: 36px;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1;
+    margin-bottom: 6px;
+    font-variant-numeric: tabular-nums;
+}
+
+.metric-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 6px;
+}
+
+/* Metric card variants */
+.metric-card.highlight {
+    border-color: var(--active-glow);
+    box-shadow: 0 0 15px rgba(251, 191, 36, 0.2);
+}
+
+.metric-card.danger {
+    border-color: var(--fascist-color);
+    box-shadow: 0 0 15px rgba(239, 68, 68, 0.2);
+}
+
+.metric-card.success {
+    border-color: var(--liberal-color);
+    box-shadow: 0 0 15px rgba(16, 185, 129, 0.2);
+}
+
+/* Info rows for game state */
+.info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    font-size: 13px;
+}
+
+.info-row:last-child {
+    border-bottom: none;
+}
+
+.info-row span:first-child {
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.info-row span:last-child {
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+/* === Scrollbar Styling === */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background-color: var(--bg-primary);
+}
+
+::-webkit-scrollbar-thumb {
+    background-color: var(--bg-tertiary);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background-color: var(--neutral-color);
+}
+
+/* === Empty State === */
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    color: var(--text-muted);
+}
+
+/* === Responsive Design (Phase 2 spec) === */
+@media (max-width: 1199px) {
+    /* Tablet: 768-1199px */
+    #spectator-container {
+        grid-template-columns: var(--sidebar-width-tablet) 1fr var(--sidebar-width-tablet);
+    }
+}
+
+@media (max-width: 768px) {
+    /* Mobile: <768px */
+    #spectator-container {
+        grid-template-columns: 1fr;
+        grid-template-rows: var(--header-height) 1fr auto;
+        grid-template-areas:
+            "header"
+            "main-stage"
+            "timeline";
+        gap: 8px;
+        padding: 8px;
+    }
+
+    #game-state-panel,
+    #metrics-panel {
+        display: none;
+    }
+
+    #main-stage {
+        padding: 15px;
+    }
+
+    #timeline-panel {
+        padding: 10px;
+    }
+}
+
+/* === Utility Classes === */
+.hidden {
+    display: none !important;
+}
+
+.fade-in {
+    animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.fade-out {
+    animation: fadeOut 0.3s ease-out;
+}
+
+@keyframes fadeOut {
+    from { opacity: 1; }
+    to { opacity: 0; }
+}
+
+/* === Phase 2 Animations === */
+@keyframes pulseGlow {
+    0%, 100% {
+        box-shadow: 0 0 10px var(--speaking-pulse);
+    }
+    50% {
+        box-shadow: 0 0 20px var(--speaking-pulse), 0 0 30px var(--speaking-pulse);
+    }
+}
+
+@keyframes shimmer {
+    0% {
+        background-position: -1000px 0;
+    }
+    100% {
+        background-position: 1000px 0;
+    }
+}
+
+@keyframes bubbleEnter {
+    from {
+        opacity: 0;
+        transform: translateY(20px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* === Phase 3: Enhanced Bubble System === */
+
+/* Bubble fade-out animation for old bubbles */
+.bubble-fade-old {
+    opacity: 0.6;
+    transition: opacity 0.5s ease;
+}
+
+/* Strategy section styling */
+.strategy-section {
+    margin-top: 12px;
+    padding: 8px 10px;
+    background: linear-gradient(90deg, rgba(102, 126, 234, 0.1) 0%, rgba(0, 0, 0, 0.2) 100%);
+    border-radius: 6px;
+    border-left: 3px solid var(--phase-nomination);
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.strategy-icon {
+    font-size: 16px;
+}
+
+/* Full reasoning expandable section */
+.full-reasoning-section {
+    margin-top: 12px;
+}
+
+.expand-toggle {
+    width: 100%;
+    padding: 8px 12px;
+    background-color: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--text-secondary);
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    text-align: left;
+    transition: all 0.2s;
+}
+
+.expand-toggle:hover {
+    background-color: rgba(0, 0, 0, 0.3);
+    color: var(--text-primary);
+}
+
+.full-reasoning-content {
+    max-height: 400px;
+    overflow-y: auto;
+    margin-top: 8px;
+    padding: 10px;
+    background-color: rgba(0, 0, 0, 0.3);
+    border-radius: 6px;
+    transition: max-height 0.3s ease;
+}
+
+.full-reasoning-content.collapsed {
+    max-height: 0;
+    padding: 0;
+    margin-top: 0;
+    overflow: hidden;
+}
+
+.full-reasoning-content pre {
+    margin: 0;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    color: var(--text-secondary);
+}
+
+/* Deception alert banner */
+.deception-alert {
+    padding: 12px 16px;
+    background: linear-gradient(90deg, rgba(239, 68, 68, 0.2) 0%, rgba(192, 57, 43, 0.1) 100%);
+    border-left: 4px solid var(--fascist-color);
+    border-radius: 6px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    animation: slideIn 0.3s ease-out;
+    transition: opacity 0.3s ease;
+}
+
+.deception-alert.fade-out {
+    opacity: 0;
+}
+
+.alert-close {
+    margin-left: auto;
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 24px;
+    cursor: pointer;
+    padding: 0;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+}
+
+.alert-close:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: var(--text-primary);
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(-20px);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* Enhanced belief grid visualization */
+.belief-entry {
+    padding: 10px;
+    margin-top: 8px;
+    background: linear-gradient(135deg, rgba(0, 0, 0, 0.3) 0%, rgba(0, 0, 0, 0.2) 100%);
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    transition: all 0.2s;
+}
+
+.belief-entry:hover {
+    border-color: rgba(255, 255, 255, 0.1);
+    transform: translateX(2px);
+}
+
+.belief-player-name {
+    font-weight: 600;
+    font-size: 13px;
+    margin-bottom: 8px;
+    color: var(--text-primary);
+}
+
+/* Enhanced probability bars with gradients */
+.prob-fill {
+    height: 100%;
+    transition: width 0.5s cubic-bezier(0.4, 0.0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+.prob-fill::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+    animation: shimmer 2s infinite;
+}
+
+/* Mentioned player highlighting in speech */
+.mentioned-player {
+    background-color: rgba(102, 126, 234, 0.3);
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-weight: 600;
+    color: var(--phase-nomination);
+}
+
+/* Deception intensity variants */
+.speech-bubble.low-deception {
+    border-left-width: 3px;
+}
+
+.speech-bubble.medium-deception {
+    border-left-width: 4px;
+    background-color: rgba(192, 57, 43, 0.15);
+}
+
+.speech-bubble.high-deception {
+    border-left-width: 5px;
+    background-color: rgba(192, 57, 43, 0.25);
+}
+
+/* Bubble container improvements */
+.bubble-container {
+    position: relative;
+}
+
+.bubble-container > * {
+    animation: bubbleEnter 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Auto-fade old bubbles after certain threshold */
+.bubble-container > *:nth-last-child(n+6) {
+    opacity: 0.7;
+}
+
+.bubble-container > *:nth-last-child(n+11) {
+    opacity: 0.4;
+}
+
+/* Confidence meter enhancements */
+.confidence-meter {
+    position: relative;
+}
+
+.confidence-fill {
+    position: relative;
+    overflow: hidden;
+}
+
+.confidence-fill::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 50%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+    animation: shimmer 2s infinite;
+}
+
+.confidence-fill.high {
+    background: linear-gradient(90deg, #27AE60 0%, #2ECC71 100%);
+}
+
+.confidence-fill.medium {
+    background: linear-gradient(90deg, #F39C12 0%, #F1C40F 100%);
+}
+
+.confidence-fill.low {
+    background: linear-gradient(90deg, #E74C3C 0%, #C0392B 100%);
+}
+/* === Phase 5: Timeline & Replay Controls === */
+
+.timeline-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    height: 100%;
+}
+
+/* Playback Controls */
+.playback-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.control-btn {
+    width: 40px;
+    height: 40px;
+    background: var(--bg-tertiary);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    color: var(--text-primary);
+    font-size: 18px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.control-btn:hover {
+    background: var(--bg-primary);
+    border-color: rgba(255, 255, 255, 0.2);
+    transform: translateY(-2px);
+}
+
+.control-btn:active {
+    transform: translateY(0);
+}
+
+.control-btn.play {
+    width: 48px;
+    height: 48px;
+    background: var(--phase-nomination);
+    border-color: var(--phase-nomination);
+    font-size: 20px;
+}
+
+.control-btn.play:hover {
+    background: var(--phase-voting);
+    border-color: var(--phase-voting);
+}
+
+.control-btn.play.playing {
+    background: var(--fascist-color);
+    border-color: var(--fascist-color);
+    animation: playingPulse 2s infinite;
+}
+
+@keyframes playingPulse {
+    0%, 100% {
+        box-shadow: 0 0 10px rgba(239, 68, 68, 0.3);
+    }
+    50% {
+        box-shadow: 0 0 20px rgba(239, 68, 68, 0.6);
+    }
+}
+
+.speed-control {
+    padding: 8px 12px;
+    background: var(--bg-tertiary);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    color: var(--text-primary);
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.speed-control:hover {
+    background: var(--bg-primary);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.timeline-info {
+    display: flex;
+    gap: 16px;
+    margin-left: auto;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.timeline-info span {
+    padding: 6px 12px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
+}
+
+/* Timeline Container */
+.timeline-container {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    position: relative;
+}
+
+.timeline-track {
+    width: 100%;
+    position: relative;
+    height: 40px;
+}
+
+/* Timeline Slider */
+.timeline-slider {
+    width: 100%;
+    height: 8px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: transparent;
+    outline: none;
+    border-radius: 4px;
+    cursor: pointer;
+    position: relative;
+    z-index: 2;
+}
+
+.timeline-slider::-webkit-slider-track {
+    width: 100%;
+    height: 8px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+}
+
+.timeline-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    background: var(--phase-nomination);
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+    transition: all 0.2s;
+}
+
+.timeline-slider::-webkit-slider-thumb:hover {
+    background: var(--phase-voting);
+    transform: scale(1.2);
+}
+
+.timeline-slider::-moz-range-track {
+    width: 100%;
+    height: 8px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+}
+
+.timeline-slider::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    background: var(--phase-nomination);
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+    transition: all 0.2s;
+}
+
+.timeline-slider::-moz-range-thumb:hover {
+    background: var(--phase-voting);
+    transform: scale(1.2);
+}
+
+/* Timeline Progress */
+.timeline-progress {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 8px;
+    background: linear-gradient(90deg, var(--phase-nomination), var(--phase-voting));
+    border-radius: 4px;
+    pointer-events: none;
+    z-index: 1;
+    transition: width 0.1s ease;
+}
+
+/* Timeline Markers */
+.timeline-markers {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 40px;
+    pointer-events: none;
+    z-index: 3;
+}
+
+.timeline-marker {
+    position: absolute;
+    top: -6px;
+    transform: translateX(-50%);
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    pointer-events: all;
+    transition: all 0.2s;
+    border: 2px solid var(--bg-primary);
+}
+
+.timeline-marker:hover {
+    transform: translateX(-50%) scale(1.3);
+    z-index: 10;
+}
+
+.marker-icon {
+    font-size: 12px;
+}
+
+/* Marker types */
+.timeline-marker.policy {
+    background: var(--phase-legislative);
+}
+
+.timeline-marker.deception {
+    background: var(--fascist-color);
+    animation: markerPulse 2s infinite;
+}
+
+.timeline-marker.execution {
+    background: #000000;
+    border-color: var(--fascist-color);
+}
+
+.timeline-marker.investigation {
+    background: var(--phase-nomination);
+}
+
+.timeline-marker.critical_vote {
+    background: var(--phase-voting);
+}
+
+.timeline-marker.system {
+    background: var(--bg-tertiary);
+}
+
+/* Marker severity */
+.timeline-marker.high {
+    width: 24px;
+    height: 24px;
+    top: -8px;
+}
+
+.timeline-marker.low {
+    width: 16px;
+    height: 16px;
+    top: -4px;
+    opacity: 0.7;
+}
+
+@keyframes markerPulse {
+    0%, 100% {
+        box-shadow: 0 0 8px rgba(239, 68, 68, 0.4);
+    }
+    50% {
+        box-shadow: 0 0 16px rgba(239, 68, 68, 0.8);
+    }
+}
+
+/* Tooltip for markers */
+.timeline-marker::after {
+    content: attr(title);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 6px 10px;
+    background: var(--bg-secondary);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    font-size: 11px;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+    margin-bottom: 8px;
+}
+
+.timeline-marker:hover::after {
+    opacity: 1;
+}
+
+/* ============================================
+   PHASE 6: Analytics & Insights Styles
+   ============================================ */
+
+/* Trust Network Container */
+.trust-network-container {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 12px;
+    padding: 15px;
+    margin-bottom: 20px;
+}
+
+.trust-network-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.trust-network-header h3 {
+    margin: 0;
+    color: var(--text-color);
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.trust-network-controls {
+    display: flex;
+    gap: 8px;
+}
+
+.trust-network-btn {
+    padding: 6px 12px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 6px;
+    color: var(--text-color);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.trust-network-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.trust-network-btn.active {
+    background: var(--accent-color);
+    border-color: var(--accent-color);
+}
+
+/* Trust Network SVG */
+.trust-network-svg {
+    width: 100%;
+    height: auto;
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.trust-link {
+    transition: opacity 0.3s, stroke-width 0.3s;
+}
+
+.trust-node {
+    transition: opacity 0.3s;
+}
+
+.trust-node circle {
+    transition: all 0.2s;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+}
+
+.trust-node:hover circle {
+    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.5));
+}
+
+.node-label {
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+    font-family: system-ui, -apple-system, sans-serif;
+}
+
+/* Analytics Panel */
+.analytics-panel {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 12px;
+    padding: 15px;
+    margin-bottom: 20px;
+}
+
+.analytics-header {
+    margin-bottom: 15px;
+}
+
+.analytics-header h3 {
+    margin: 0 0 5px 0;
+    color: var(--text-color);
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.analytics-subtitle {
+    color: var(--text-muted);
+    font-size: 12px;
+}
+
+/* Summary Stats Grid */
+.summary-stats {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.stat-item {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 8px;
+    padding: 12px;
+    text-align: center;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.stat-value {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--text-color);
+    margin-bottom: 4px;
+}
+
+.stat-value.positive {
+    color: var(--liberal-color);
+}
+
+.stat-value.negative {
+    color: var(--fascist-color);
+}
+
+.stat-value.warning {
+    color: #fbbf24;
+}
+
+.stat-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Deception Tracker */
+.deception-tracker {
+    margin-top: 15px;
+}
+
+.deception-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.deception-header h4 {
+    margin: 0;
+    font-size: 14px;
+    color: var(--text-color);
+}
+
+.deception-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.deception-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    background: rgba(239, 68, 68, 0.1);
+    border-left: 3px solid var(--fascist-color);
+    border-radius: 6px;
+    transition: all 0.2s;
+}
+
+.deception-item:hover {
+    background: rgba(239, 68, 68, 0.15);
+    transform: translateX(2px);
+}
+
+.deception-player {
+    font-weight: 600;
+    color: var(--text-color);
+    flex-shrink: 0;
+}
+
+.deception-bar-container {
+    flex-grow: 1;
+    height: 6px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.deception-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #fbbf24, var(--fascist-color));
+    border-radius: 3px;
+    transition: width 0.5s ease-out;
+}
+
+.deception-count {
+    font-size: 12px;
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+/* Insights Panel */
+.insights-panel {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 12px;
+    padding: 15px;
+}
+
+.insights-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.insights-header h3 {
+    margin: 0;
+    font-size: 16px;
+    color: var(--text-color);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.insights-count {
+    background: var(--accent-color);
+    color: white;
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-weight: 600;
+}
+
+.insight-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-height: 400px;
+    overflow-y: auto;
+    padding-right: 5px;
+}
+
+.insight-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    transition: all 0.2s;
+}
+
+.insight-item:hover {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.1);
+    transform: translateY(-2px);
+}
+
+.insight-item.high {
+    border-left: 3px solid var(--fascist-color);
+}
+
+.insight-item.medium {
+    border-left: 3px solid #fbbf24;
+}
+
+.insight-item.low {
+    border-left: 3px solid var(--liberal-color);
+}
+
+.insight-icon {
+    font-size: 20px;
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 6px;
+}
+
+.insight-content {
+    flex-grow: 1;
+}
+
+.insight-text {
+    color: var(--text-color);
+    font-size: 13px;
+    line-height: 1.4;
+    margin-bottom: 6px;
+}
+
+.insight-meta {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.insight-confidence {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+.confidence-bar {
+    width: 50px;
+    height: 4px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.confidence-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--liberal-color), var(--accent-color));
+    border-radius: 2px;
+}
+
+.insight-type {
+    font-size: 10px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.3);
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Empty State */
+.analytics-empty {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text-muted);
+}
+
+.analytics-empty-icon {
+    font-size: 48px;
+    margin-bottom: 12px;
+    opacity: 0.5;
+}
+
+.analytics-empty-text {
+    font-size: 14px;
+}
+
+/* Export Button */
+.export-analytics-btn {
+    width: 100%;
+    padding: 10px;
+    margin-top: 15px;
+    background: rgba(79, 70, 229, 0.2);
+    border: 1px solid rgba(79, 70, 229, 0.3);
+    border-radius: 8px;
+    color: var(--text-color);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.export-analytics-btn:hover {
+    background: rgba(79, 70, 229, 0.3);
+    border-color: rgba(79, 70, 229, 0.5);
+}
+
+/* Scrollbar Styles for Analytics */
+.insight-list::-webkit-scrollbar,
+.deception-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.insight-list::-webkit-scrollbar-track,
+.deception-list::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 3px;
+}
+
+.insight-list::-webkit-scrollbar-thumb,
+.deception-list::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 3px;
+}
+
+.insight-list::-webkit-scrollbar-thumb:hover,
+.deception-list::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+/* Responsive Adjustments */
+@media (max-width: 1400px) {
+    .summary-stats {
+        grid-template-columns: 1fr;
+    }
+}
+

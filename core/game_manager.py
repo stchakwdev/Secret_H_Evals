@@ -8,12 +8,22 @@ from typing import Dict, List, Optional, Any, Set, Union
 from datetime import datetime
 import uuid
 from enum import Enum
+import logging
 
 from .game_state import GameState, GamePhase, Role, Policy
-from agents.openrouter_client import OpenRouterClient, APIResponse
+from .game_events import (
+    create_reasoning_event,
+    create_speech_event,
+    ReasoningEvent,
+    SpeechEvent
+)
+from agents.openrouter_client import OpenRouterClient, APIResponse, AIDecisionResponse
 from game_logging.game_logger import GameLogger
 from agents.prompt_templates import PromptTemplates
 from web_bridge.spectator_adapter import SpectatorAdapter
+from analytics.deception_detector import get_detector
+
+logger = logging.getLogger(__name__)
 
 class PlayerType(Enum):
     """Player types for hybrid games."""
@@ -57,7 +67,10 @@ class GameManager:
         # Spectator support
         self.spectator_callback = spectator_callback
         self.spectator_adapter = SpectatorAdapter()
-        
+
+        # Deception detection
+        self.deception_detector = get_detector()
+
         # Game flow control
         self.is_running = False
         self.current_action_timeout = 60  # seconds
@@ -108,7 +121,240 @@ class GameManager:
         """Set player personalities in spectator adapter."""
         if personalities:
             self.spectator_adapter.set_player_personalities(personalities)
-    
+
+    def _process_ai_decision(
+        self,
+        response: APIResponse,
+        player_id: str,
+        player_name: str,
+        decision_type: str,
+        available_options: Optional[List[str]] = None
+    ) -> Dict[str, Any]:
+        """
+        Process AI decision with deception detection and event emission.
+
+        Args:
+            response: API response from OpenRouter
+            player_id: Player identifier
+            player_name: Player name for display
+            decision_type: Type of decision (nomination, vote, policy_choice, etc.)
+            available_options: List of available options for this decision
+
+        Returns:
+            Dict containing:
+                - action: Extracted action string
+                - reasoning: Reasoning summary
+                - beliefs: Belief distributions
+                - public_statement: Public statement (or None)
+                - is_deceptive: Whether deception was detected
+                - deception_score: Confidence in deception
+        """
+        result = {
+            'action': None,
+            'reasoning': None,
+            'beliefs': {},
+            'public_statement': None,
+            'is_deceptive': False,
+            'deception_score': 0.0
+        }
+
+        # Strategy 1: Try to use structured data (preferred)
+        if response.structured_data:
+            try:
+                structured = response.structured_data
+
+                # Extract reasoning
+                reasoning_summary = structured.reasoning.summary
+                full_reasoning = structured.reasoning.full_analysis
+                confidence = structured.reasoning.confidence
+                strategy = structured.reasoning.strategy
+
+                # Extract beliefs (convert RoleBeliefs to dicts)
+                beliefs_dict = {}
+                for target_player, role_beliefs in structured.beliefs.items():
+                    beliefs_dict[target_player] = {
+                        'liberal': role_beliefs.liberal,
+                        'fascist': role_beliefs.fascist,
+                        'hitler': role_beliefs.hitler
+                    }
+
+                # Extract action and statement
+                action = structured.action
+                public_statement = structured.public_statement
+
+                # Create reasoning event (private - spectators only)
+                reasoning_event = create_reasoning_event(
+                    player_id=player_id,
+                    player_name=player_name,
+                    reasoning_summary=reasoning_summary,
+                    confidence=confidence,
+                    beliefs=beliefs_dict,
+                    decision_type=decision_type,
+                    full_reasoning=full_reasoning,
+                    strategy=strategy,
+                    available_options=available_options,
+                    chosen_option=action
+                )
+
+                # Emit reasoning event to spectators
+                reasoning_dict = reasoning_event.model_dump()
+                reasoning_dict['type'] = 'reasoning'
+                reasoning_dict['player_id'] = player_id
+                self._send_spectator_event(reasoning_dict)
+
+                # If there's a public statement, create speech event with deception detection
+                is_deceptive = False
+                deception_score = 0.0
+                contradiction_summary = None
+
+                if public_statement and public_statement.strip():
+                    # Run deception detection
+                    full_reasoning_text = full_reasoning or reasoning_summary
+                    is_deceptive, deception_score, contradiction_summary = \
+                        self.deception_detector.detect_deception(
+                            reasoning=full_reasoning_text,
+                            statement=public_statement,
+                            context={'players': [p['name'] for p in self.player_configs]}
+                        )
+
+                    # Create speech event (public)
+                    speech_event = create_speech_event(
+                        player_id=player_id,
+                        player_name=player_name,
+                        content=public_statement,
+                        statement_type=self._infer_statement_type(decision_type),
+                        is_deceptive=is_deceptive,
+                        deception_score=deception_score,
+                        contradiction_summary=contradiction_summary,
+                        game_context=f"{decision_type} decision"
+                    )
+
+                    # Emit speech event
+                    speech_dict = speech_event.model_dump()
+                    speech_dict['type'] = 'speech'
+                    speech_dict['player_id'] = player_id
+                    self._send_spectator_event(speech_dict)
+
+                    # Log deception if detected
+                    if is_deceptive and deception_score > 0.5:
+                        logger.info(
+                            f"🎭 DECEPTION DETECTED: {player_name} - {contradiction_summary} "
+                            f"(confidence: {deception_score:.2f})"
+                        )
+
+                # Update result
+                result.update({
+                    'action': action,
+                    'reasoning': reasoning_summary,
+                    'beliefs': beliefs_dict,
+                    'public_statement': public_statement,
+                    'is_deceptive': is_deceptive,
+                    'deception_score': deception_score
+                })
+
+                return result
+
+            except Exception as e:
+                logger.warning(f"Failed to process structured data: {e}, falling back to content parsing")
+
+        # Strategy 2: Fallback to raw content parsing (old behavior)
+        if response.content:
+            action = self._extract_action_from_content(response.content)
+            reasoning = self._extract_reasoning(response.content)
+            statement = self._extract_statement(response.content)
+
+            result.update({
+                'action': action,
+                'reasoning': reasoning,
+                'public_statement': statement
+            })
+
+            # Emit basic reasoning event
+            basic_reasoning_event = {
+                'type': 'reasoning',
+                'player_id': player_id,
+                'player_name': player_name,
+                'summary': reasoning or "No reasoning available",
+                'confidence': 0.5,
+                'decision_type': decision_type,
+                'timestamp': datetime.now().isoformat()
+            }
+            self._send_spectator_event(basic_reasoning_event)
+
+            # If statement exists, emit speech event with deception detection
+            if statement and statement.strip():
+                is_deceptive, deception_score, contradiction = \
+                    self.deception_detector.detect_deception(
+                        reasoning=reasoning or "",
+                        statement=statement,
+                        context={'players': [p['name'] for p in self.player_configs]}
+                    )
+
+                speech_event = {
+                    'type': 'speech',
+                    'player_id': player_id,
+                    'player_name': player_name,
+                    'content': statement,
+                    'statement_type': self._infer_statement_type(decision_type),
+                    'is_deceptive': is_deceptive,
+                    'deception_score': deception_score,
+                    'contradiction_summary': contradiction,
+                    'timestamp': datetime.now().isoformat()
+                }
+                self._send_spectator_event(speech_event)
+
+                result.update({
+                    'is_deceptive': is_deceptive,
+                    'deception_score': deception_score
+                })
+
+                if is_deceptive and deception_score > 0.5:
+                    logger.info(
+                        f"🎭 DECEPTION DETECTED: {player_name} - {contradiction} "
+                        f"(confidence: {deception_score:.2f})"
+                    )
+
+            return result
+
+        # Strategy 3: Complete fallback
+        logger.error(f"No valid response data for {player_name}'s {decision_type} decision")
+        return result
+
+    def _infer_statement_type(self, decision_type: str) -> str:
+        """Map decision type to statement type."""
+        mapping = {
+            'nomination': 'nomination_reason',
+            'vote': 'vote_explanation',
+            'policy_choice': 'statement',
+            'investigation': 'statement',
+            'execution': 'statement',
+        }
+        return mapping.get(decision_type, 'statement')
+
+    def _extract_action_from_content(self, content: str) -> Optional[str]:
+        """Extract action from raw content (fallback for non-structured responses)."""
+        # Try to find action patterns in content
+        import re
+
+        # Look for common action patterns
+        patterns = [
+            r'"action"\s*:\s*"([^"]+)"',
+            r'ACTION:\s*([^\n]+)',
+            r'I (?:will |am going to |choose to |nominate |vote |select )([^\n.]+)',
+        ]
+
+        for pattern in patterns:
+            match = re.search(pattern, content, re.IGNORECASE)
+            if match:
+                return match.group(1).strip()
+
+        # If no pattern matches, return first meaningful line
+        lines = [line.strip() for line in content.split('\n') if line.strip()]
+        if lines:
+            return lines[0][:100]  # First line, max 100 chars
+
+        return None
+
     async def start_game(self) -> Dict[str, Any]:
         """Start and run the complete game."""
         self.is_running = True
@@ -1036,5 +1282,27 @@ class GameManager:
         
         # Export usage log
         self.openrouter_client.export_usage_log(f"logs/{self.game_id}/api_usage.json")
-        
+
         return result
+
+    def _extract_statement(self, response: str) -> Optional[str]:
+        """Extract public statement from LLM response."""
+        import re
+
+        # Try to find STATEMENT section
+        statement_match = re.search(r'STATEMENT:\s*(.+?)(?:\n\n|\Z)', response, re.DOTALL | re.IGNORECASE)
+        if statement_match:
+            statement = statement_match.group(1).strip()
+            # Clean up common artifacts
+            statement = re.sub(r'^["\']+|["\']+$', '', statement)  # Remove quotes
+            return statement if statement else None
+
+        # Fallback: look for quoted text after ACTION
+        action_idx = response.upper().find('ACTION:')
+        if action_idx >= 0:
+            after_action = response[action_idx + 100:]  # Look after ACTION section
+            quote_match = re.search(r'["\']([^"\']{10,})["\']', after_action)
+            if quote_match:
+                return quote_match.group(1).strip()
+
+        return None

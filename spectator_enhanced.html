@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secret Hitler - Enhanced Spectator (Phases 1-6)</title>
+    <link rel="stylesheet" href="static/css/spectator.css">
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        /* Additional layout enhancements for Phase 5-6 integration */
+        #spectator-container {
+            grid-template-rows: auto 1fr 200px;
+        }
+
+        #timeline-panel {
+            background: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .analytics-sidebar {
+            max-height: calc(100vh - 200px);
+            overflow-y: auto;
+        }
+
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            backdrop-filter: blur(5px);
+        }
+
+        .loading-content {
+            text-align: center;
+            color: white;
+        }
+
+        .loading-spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-top-color: var(--accent-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .error-banner {
+            position: fixed;
+            top: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #ef4444;
+            color: white;
+            padding: 15px 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            z-index: 9998;
+            animation: slideDown 0.3s ease-out;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateX(-50%) translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(-50%) translateY(0);
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay" style="display: none;">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <div>Connecting to game...</div>
+        </div>
+    </div>
+
+    <div id="spectator-container">
+        <!-- Header -->
+        <header id="spectator-header" class="phase-nomination">
+            <div class="header-title">
+                🎭 Secret Hitler - Enhanced Spectator
+                <span id="phaseIndicator" style="margin-left: 15px; font-size: 18px; color: var(--phase-nomination);">
+                    [Waiting for game...]
+                </span>
+            </div>
+            <div class="connection-status">
+                <div class="status-indicator" id="statusIndicator"></div>
+                <span id="statusText">Connecting...</span>
+            </div>
+        </header>
+
+        <!-- Left Panel: Game State + Trust Network -->
+        <aside id="game-state-panel" class="analytics-sidebar">
+            <div class="panel-section">
+                <h3 class="section-title">Game Info</h3>
+                <div id="game-info">
+                    <div class="info-row">
+                        <span>Game ID:</span>
+                        <span id="gameId">-</span>
+                    </div>
+                    <div class="info-row">
+                        <span>Phase:</span>
+                        <span id="gamePhase">-</span>
+                    </div>
+                    <div class="info-row">
+                        <span>Round:</span>
+                        <span id="gameRound">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel-section">
+                <h3 class="section-title">Policy Board</h3>
+                <div class="policy-board">
+                    <div class="policy-track">
+                        <span class="policy-label liberal">Liberal</span>
+                        <div class="policy-dots" id="liberalPolicies"></div>
+                        <div class="policy-track-progress">
+                            <span class="policy-count" id="liberalCount">0 / 5</span>
+                            <span>Win at 5</span>
+                        </div>
+                    </div>
+                    <div class="policy-track">
+                        <span class="policy-label fascist">Fascist</span>
+                        <div class="policy-dots" id="fascistPolicies"></div>
+                        <div class="policy-track-progress">
+                            <span class="policy-count" id="fascistCount">0 / 6</span>
+                            <span>Win at 6</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel-section">
+                <h3 class="section-title">Players</h3>
+                <div class="players-list" id="playersList"></div>
+            </div>
+
+            <!-- Trust Network (Phase 6) -->
+            <div class="panel-section">
+                <div class="trust-network-container">
+                    <div class="trust-network-header">
+                        <h3>🕸️ Trust Network</h3>
+                        <div class="trust-network-controls">
+                            <button class="trust-network-btn active" id="trustLiveBtn">Live</button>
+                            <button class="trust-network-btn" id="trustFrozenBtn">Frozen</button>
+                        </div>
+                    </div>
+                    <div id="trustNetworkViz" style="min-height: 250px;"></div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Center Panel: Main Stage -->
+        <main id="main-stage">
+            <section class="stage-section">
+                <div class="stage-section-header">
+                    <h2 class="stage-section-title">💭 Private Reasoning</h2>
+                    <button class="clear-button" onclick="clearReasoning()">Clear</button>
+                </div>
+                <div id="reasoning-container" class="bubble-container"></div>
+            </section>
+
+            <section class="stage-section">
+                <div class="stage-section-header">
+                    <h2 class="stage-section-title">💬 Public Statements</h2>
+                    <button class="clear-button" onclick="clearSpeeches()">Clear</button>
+                </div>
+                <div id="speech-container" class="bubble-container"></div>
+            </section>
+        </main>
+
+        <!-- Right Panel: Analytics & Insights (Phase 6) -->
+        <aside id="metrics-panel" class="analytics-sidebar">
+            <!-- Summary Stats -->
+            <div class="analytics-panel">
+                <div class="analytics-header">
+                    <h3>📊 Summary Statistics</h3>
+                    <div class="analytics-subtitle">Game-wide metrics</div>
+                </div>
+                <div class="summary-stats" id="summaryStats">
+                    <div class="stat-item">
+                        <div class="stat-value">0</div>
+                        <div class="stat-label">Total Events</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value warning">0</div>
+                        <div class="stat-label">Deceptions</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value positive">0</div>
+                        <div class="stat-label">Liberal Policies</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value negative">0</div>
+                        <div class="stat-label">Fascist Policies</div>
+                    </div>
+                </div>
+
+                <!-- Deception Tracker -->
+                <div class="deception-tracker">
+                    <div class="deception-header">
+                        <h4>🎭 Deception Tracker</h4>
+                    </div>
+                    <div class="deception-list" id="deceptionList">
+                        <div style="color: rgba(255,255,255,0.5); text-align: center; padding: 20px;">
+                            No deceptions detected yet
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Insights Panel -->
+            <div class="insights-panel">
+                <div class="insights-header">
+                    <h3>
+                        💡 AI Insights
+                        <span class="insights-count" id="insightCount">0</span>
+                    </h3>
+                </div>
+                <div class="insight-list" id="insightList">
+                    <div class="analytics-empty">
+                        <div class="analytics-empty-icon">💡</div>
+                        <div class="analytics-empty-text">Insights will appear as the game progresses</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Export Button -->
+            <button class="export-analytics-btn" onclick="exportAnalytics()">
+                📊 Export Analytics Data
+            </button>
+        </aside>
+
+        <!-- Timeline Panel (Phase 5) -->
+        <footer id="timeline-panel">
+            <div class="playback-controls">
+                <button class="control-btn" id="jumpToStart" title="Jump to Start">⏮</button>
+                <button class="control-btn" id="stepBackward" title="Step Backward">◀</button>
+                <button class="control-btn play" id="togglePlay" title="Play/Pause">▶</button>
+                <button class="control-btn" id="stepForward" title="Step Forward">▶</button>
+                <button class="control-btn" id="jumpToEnd" title="Jump to End">⏭</button>
+                <select class="speed-control" id="speedControl">
+                    <option value="0.5">0.5×</option>
+                    <option value="1" selected>1×</option>
+                    <option value="2">2×</option>
+                    <option value="5">5×</option>
+                </select>
+            </div>
+            <div class="timeline-container">
+                <input type="range" class="timeline-slider" id="timelineSlider" min="0" max="0" value="0" />
+                <div class="timeline-markers" id="timelineMarkers"></div>
+                <div class="timeline-progress" id="timelineProgress"></div>
+            </div>
+            <div class="timeline-info">
+                <span id="timelineInfo">Event 0 / 0</span>
+                <span id="timelineRound">Round 0</span>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Load JavaScript Components (Phases 1-6) -->
+    <script src="static/js/SpectatorState.js"></script>
+    <script src="static/js/ThoughtBubble.js"></script>
+    <script src="static/js/SpeechBubble.js"></script>
+    <script src="static/js/PlayerCard.js"></script>
+    <script src="static/js/ReplayManager.js"></script>
+    <script src="static/js/Timeline.js"></script>
+    <script src="static/js/TrustNetwork.js"></script>
+    <script src="static/js/Analytics.js"></script>
+
+    <!-- Main Application Script -->
+    <script src="static/js/SpectatorApp.js"></script>
+
+    <!-- Initialize Application -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('🚀 Initializing SpectatorApp...');
+
+            // Create app instance
+            window.spectatorApp = new SpectatorApp();
+
+            // Get WebSocket URL from query params or default
+            const urlParams = new URLSearchParams(window.location.search);
+            const wsUrl = urlParams.get('ws') || 'ws://localhost:8765';
+
+            console.log(`📡 Connecting to: ${wsUrl}`);
+
+            // Connect to WebSocket
+            window.spectatorApp.connect(wsUrl);
+        });
+    </script>
+</body>
+</html>

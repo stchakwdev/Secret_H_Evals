@@ -10,6 +10,15 @@ from datetime import datetime
 import logging
 from pathlib import Path
 
+
+class DateTimeEncoder(json.JSONEncoder):
+    """Custom JSON encoder that handles datetime objects."""
+    def default(self, obj):
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        return super().default(obj)
+
+
 class GameLogger:
     """Multi-level logging system for LLM Secret Hitler games."""
     
@@ -120,7 +129,7 @@ class GameLogger:
             "game_id": self.game_id,
             "initial_state": initial_state
         }
-        self.game_logger.info(json.dumps(game_start_data, indent=2))
+        self.game_logger.info(json.dumps(game_start_data, indent=2, cls=DateTimeEncoder))
         
         # Update metrics
         self.metrics["player_count"] = len(initial_state['players'])
@@ -166,7 +175,7 @@ class GameLogger:
             "data": data,
             "is_deception": is_deception
         }
-        self.game_logger.info(json.dumps(full_action_data, indent=2))
+        self.game_logger.info(json.dumps(full_action_data, indent=2, cls=DateTimeEncoder))
         
         # Player-specific log
         player_logger = self._get_player_logger(player_id)
@@ -178,7 +187,7 @@ class GameLogger:
             "confidence_levels": data.get("confidence", {}),
             "trust_beliefs": data.get("trust_beliefs", {})
         }
-        player_logger.info(json.dumps(player_action_data, indent=2))
+        player_logger.info(json.dumps(player_action_data, indent=2, cls=DateTimeEncoder))
         
         # Track reasoning entries
         if reasoning:
@@ -231,7 +240,7 @@ class GameLogger:
             "tokens": tokens,
             "decision_type": decision_type
         }
-        self.game_logger.info(json.dumps(api_log_data, indent=2))
+        self.game_logger.info(json.dumps(api_log_data, indent=2, cls=DateTimeEncoder))
     
     async def log_game_state_transition(self, from_phase: str, to_phase: str, 
                                       game_state: Dict[str, Any]):
@@ -246,7 +255,7 @@ class GameLogger:
             "game_state": game_state
         }
         
-        self.game_logger.info(json.dumps(transition_data, indent=2))
+        self.game_logger.info(json.dumps(transition_data, indent=2, cls=DateTimeEncoder))
         self.public_logger.info(f"Game phase changed: {from_phase} -> {to_phase}")
     
     async def log_game_end(self, final_result: Dict[str, Any]):
@@ -277,7 +286,7 @@ class GameLogger:
             "final_result": final_result,
             "duration_seconds": duration
         }
-        self.game_logger.info(json.dumps(game_end_data, indent=2))
+        self.game_logger.info(json.dumps(game_end_data, indent=2, cls=DateTimeEncoder))
         
         # Save final metrics
         await self._save_metrics()
@@ -293,7 +302,7 @@ class GameLogger:
             "error_data": error_data or {}
         }
         
-        self.game_logger.error(json.dumps(error_log_data, indent=2))
+        self.game_logger.error(json.dumps(error_log_data, indent=2, cls=DateTimeEncoder))
         self.public_logger.error(f"Game error: {error_message}")
     
     def _detect_deception(self, reasoning: str, public_statement: str, data: Dict) -> bool:

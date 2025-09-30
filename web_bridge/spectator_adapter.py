@@ -9,43 +9,130 @@ parsing AI responses and converting game state changes into spectator-friendly e
 import json
 import re
 from datetime import datetime
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple
 import logging
 
 logger = logging.getLogger(__name__)
 
 class SpectatorAdapter:
     """Converts game events and AI responses for web interface visualization."""
-    
+
     def __init__(self):
         self.game_events = []
         self.player_personalities = {}
         self.current_game_state = {}
+        self.recent_reasoning = {}  # Track recent reasoning per player for deception detection
     
     def set_player_personalities(self, personalities: Dict[str, str]):
         """Set AI player personalities for display."""
         self.player_personalities = personalities
-    
+
+    def detect_deception(self, reasoning: str, statement: str) -> Tuple[bool, float, str]:
+        """
+        Detect potential deception by comparing private reasoning with public statement.
+
+        Returns:
+            Tuple of (is_deceptive, deception_score, contradiction_summary)
+        """
+        if not reasoning or not statement:
+            return False, 0.0, ""
+
+        reasoning_lower = reasoning.lower()
+        statement_lower = statement.lower()
+
+        deception_score = 0.0
+        contradictions = []
+
+        # Check for direct contradictions in policy claims
+        policy_contradictions = [
+            ('liberal', 'fascist'),
+            ('fascist', 'liberal'),
+            ('two liberal', 'two fascist'),
+            ('two fascist', 'two liberal'),
+        ]
+
+        for reasoning_term, statement_term in policy_contradictions:
+            if reasoning_term in reasoning_lower and statement_term in statement_lower:
+                deception_score += 0.4
+                contradictions.append(f"Claims {statement_term} but thought {reasoning_term}")
+
+        # Check for trust/distrust contradictions
+        trust_patterns = [
+            (r'trust\s+(\w+)', r'don\'t trust\s+\1|distrust\s+\1'),
+            (r'suspicious of\s+(\w+)', r'trust\s+\1'),
+        ]
+
+        for reasoning_pattern, statement_pattern in trust_patterns:
+            reasoning_match = re.search(reasoning_pattern, reasoning_lower)
+            if reasoning_match:
+                statement_match = re.search(statement_pattern, statement_lower)
+                if statement_match:
+                    deception_score += 0.3
+                    contradictions.append("Contradictory trust statements")
+
+        # Check for intentional lying keywords in reasoning
+        lying_keywords = ['lie', 'deceive', 'frame', 'blame', 'misdirect', 'hide the truth']
+        for keyword in lying_keywords:
+            if keyword in reasoning_lower:
+                deception_score += 0.25
+                contradictions.append(f"Planning to {keyword}")
+
+        # Check for opposite voting intentions
+        if 'vote ja' in reasoning_lower and ('vote nein' in statement_lower or 'voting no' in statement_lower):
+            deception_score += 0.5
+            contradictions.append("Voting opposite to stated intention")
+        elif 'vote nein' in reasoning_lower and ('vote ja' in statement_lower or 'voting yes' in statement_lower):
+            deception_score += 0.5
+            contradictions.append("Voting opposite to stated intention")
+
+        # Check for semantic negation patterns
+        if 'enact fascist' in reasoning_lower and 'enact liberal' in statement_lower:
+            deception_score += 0.6
+            contradictions.append("Planning to enact opposite policy")
+
+        # Cap deception score at 1.0
+        deception_score = min(deception_score, 1.0)
+
+        is_deceptive = deception_score > 0.3
+        contradiction_summary = "; ".join(contradictions) if contradictions else ""
+
+        return is_deceptive, deception_score, contradiction_summary
+
     def parse_ai_response(self, player_id: str, player_name: str, response: str, context: str) -> Dict[str, Any]:
         """Parse AI response into structured format for spectator display."""
-        
+
         # Extract REASONING, ACTION, and STATEMENT sections using regex
         reasoning_match = re.search(r'REASONING:\s*(.*?)(?=\n(?:ACTION|STATEMENT|$))', response, re.DOTALL | re.IGNORECASE)
         action_match = re.search(r'ACTION:\s*(.*?)(?=\n(?:REASONING|STATEMENT|$))', response, re.DOTALL | re.IGNORECASE)
         statement_match = re.search(r'STATEMENT:\s*(.*?)(?=\n(?:REASONING|ACTION|$))', response, re.DOTALL | re.IGNORECASE)
-        
+
+        reasoning = reasoning_match.group(1).strip() if reasoning_match else "No reasoning provided"
+        statement = statement_match.group(1).strip() if statement_match else ""
+
+        # Store reasoning for this player
+        self.recent_reasoning[player_id] = reasoning
+
+        # Detect deception if there's both reasoning and statement
+        is_deceptive, deception_score, contradiction_summary = False, 0.0, ""
+        if reasoning and statement:
+            is_deceptive, deception_score, contradiction_summary = self.detect_deception(reasoning, statement)
+
         parsed_response = {
             'player_id': player_id,
             'player_name': player_name,
             'timestamp': datetime.now().isoformat(),
             'context': context,
             'personality': self.player_personalities.get(player_id, "Unknown AI"),
-            'reasoning': reasoning_match.group(1).strip() if reasoning_match else "No reasoning provided",
+            'reasoning': reasoning,
             'action': action_match.group(1).strip() if action_match else "No action specified",
-            'statement': statement_match.group(1).strip() if statement_match else "",
-            'raw_response': response
+            'statement': statement,
+            'raw_response': response,
+            # Deception detection results
+            'is_deceptive': is_deceptive,
+            'deception_score': deception_score,
+            'contradiction_summary': contradiction_summary
         }
-        
+
         return parsed_response
     
     def create_game_event(self, event_type: str, data: Dict[str, Any]) -> Dict[str, Any]:

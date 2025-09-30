@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secret Hitler - Spectator UI (Phase 1)</title>
+    <link rel="stylesheet" href="static/css/spectator.css">
+</head>
+<body>
+    <div id="spectator-container">
+        <!-- Header -->
+        <header id="spectator-header" class="phase-nomination">
+            <div class="header-title">
+                🎭 Secret Hitler - AI Spectator
+                <span id="phaseIndicator" style="margin-left: 15px; font-size: 18px; color: var(--phase-nomination);">
+                    [Waiting for game...]
+                </span>
+            </div>
+            <div class="connection-status">
+                <div class="status-indicator" id="statusIndicator"></div>
+                <span id="statusText">Connecting...</span>
+            </div>
+        </header>
+
+        <!-- Left Panel: Game State -->
+        <aside id="game-state-panel">
+            <div class="panel-section">
+                <h3 class="section-title">Game Info</h3>
+                <div id="game-info">
+                    <div class="info-row">
+                        <span>Game ID:</span>
+                        <span id="gameId">-</span>
+                    </div>
+                    <div class="info-row">
+                        <span>Phase:</span>
+                        <span id="gamePhase">-</span>
+                    </div>
+                    <div class="info-row">
+                        <span>Round:</span>
+                        <span id="gameRound">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel-section">
+                <h3 class="section-title">Policy Board</h3>
+                <div class="policy-board">
+                    <div class="policy-track">
+                        <span class="policy-label liberal">Liberal</span>
+                        <div class="policy-dots" id="liberalPolicies"></div>
+                        <div class="policy-track-progress">
+                            <span class="policy-count" id="liberalCount">0 / 5</span>
+                            <span>Win at 5</span>
+                        </div>
+                    </div>
+                    <div class="policy-track">
+                        <span class="policy-label fascist">Fascist</span>
+                        <div class="policy-dots" id="fascistPolicies"></div>
+                        <div class="policy-track-progress">
+                            <span class="policy-count" id="fascistCount">0 / 6</span>
+                            <span>Win at 6</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel-section">
+                <h3 class="section-title">Players</h3>
+                <div class="players-list" id="playersList"></div>
+            </div>
+        </aside>
+
+        <!-- Center Panel: Main Stage -->
+        <main id="main-stage">
+            <section class="stage-section">
+                <div class="stage-section-header">
+                    <h2 class="stage-section-title">💭 Private Reasoning</h2>
+                    <button class="clear-button" onclick="clearReasoning()">Clear</button>
+                </div>
+                <div id="reasoning-container" class="bubble-container"></div>
+            </section>
+
+            <section class="stage-section">
+                <div class="stage-section-header">
+                    <h2 class="stage-section-title">💬 Public Statements</h2>
+                    <button class="clear-button" onclick="clearSpeeches()">Clear</button>
+                </div>
+                <div id="speech-container" class="bubble-container"></div>
+            </section>
+        </main>
+
+        <!-- Right Panel: Metrics -->
+        <aside id="metrics-panel">
+            <div class="panel-section">
+                <h3 class="section-title">Deception Stats</h3>
+                <div class="metric-card">
+                    <div class="metric-title">Total Speeches</div>
+                    <div class="metric-value" id="totalSpeeches">0</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-title">Deceptive</div>
+                    <div class="metric-value" id="deceptiveSpeeches" style="color: #ef4444;">0</div>
+                    <div class="metric-label">(<span id="deceptionRate">0</span>%)</div>
+                </div>
+            </div>
+
+            <div class="panel-section">
+                <h3 class="section-title">By Player</h3>
+                <div id="playerDeceptionStats"></div>
+            </div>
+
+            <div class="panel-section">
+                <h3 class="section-title">Recent Alerts</h3>
+                <div id="deceptionAlerts"></div>
+            </div>
+        </aside>
+
+        <!-- Timeline Panel (Phase 2) -->
+        <footer id="timeline-panel">
+            <div style="color: var(--text-secondary); font-size: 14px;">
+                Timeline controls will be implemented in Phase 3
+            </div>
+        </footer>
+    </div>
+
+    <!-- Load JavaScript Components -->
+    <script src="static/js/SpectatorState.js"></script>
+    <script src="static/js/ThoughtBubble.js"></script>
+    <script src="static/js/SpeechBubble.js"></script>
+    <script src="static/js/PlayerCard.js"></script>
+
+    <!-- Main Application Script -->
+    <script>
+        // Initialize state manager
+        const spectatorState = new SpectatorState();
+
+        // DOM elements
+        const statusIndicator = document.getElementById('statusIndicator');
+        const statusText = document.getElementById('statusText');
+        const gameId = document.getElementById('gameId');
+        const gamePhase = document.getElementById('gamePhase');
+        const gameRound = document.getElementById('gameRound');
+        const liberalPolicies = document.getElementById('liberalPolicies');
+        const fascistPolicies = document.getElementById('fascistPolicies');
+        const playersList = document.getElementById('playersList');
+        const reasoningContainer = document.getElementById('reasoning-container');
+        const speechContainer = document.getElementById('speech-container');
+        const totalSpeeches = document.getElementById('totalSpeeches');
+        const deceptiveSpeeches = document.getElementById('deceptiveSpeeches');
+        const deceptionRate = document.getElementById('deceptionRate');
+        const playerDeceptionStats = document.getElementById('playerDeceptionStats');
+        const deceptionAlerts = document.getElementById('deceptionAlerts');
+
+        // Track if we've shown initial empty states
+        let hasShownReasoningEmpty = false;
+        let hasShownSpeechEmpty = false;
+
+        // Register callbacks
+        spectatorState.onUpdate(() => {
+            updateGameState();
+        });
+
+        spectatorState.onReasoningEvent((playerId, reasoning) => {
+            // Remove empty state on first reasoning
+            if (!hasShownReasoningEmpty) {
+                reasoningContainer.innerHTML = '';
+                hasShownReasoningEmpty = true;
+            }
+
+            const player = spectatorState.getPlayer(playerId);
+            if (player) {
+                const bubble = ThoughtBubble.create(reasoning, player);
+                reasoningContainer.appendChild(bubble);
+
+                // Auto-scroll
+                setTimeout(() => {
+                    bubble.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }, 100);
+            }
+        });
+
+        spectatorState.onSpeechEvent((playerId, speech) => {
+            // Remove empty state on first speech
+            if (!hasShownSpeechEmpty) {
+                speechContainer.innerHTML = '';
+                hasShownSpeechEmpty = true;
+            }
+
+            const player = spectatorState.getPlayer(playerId);
+            if (player) {
+                const bubble = SpeechBubble.create(speech, player);
+                speechContainer.appendChild(bubble);
+
+                // Auto-scroll
+                setTimeout(() => {
+                    bubble.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }, 100);
+
+                // Update deception stats
+                updateDeceptionStats();
+            }
+        });
+
+        spectatorState.onDeception((playerId, speech) => {
+            const player = spectatorState.getPlayer(playerId);
+            if (player && speech.deceptionScore > 0.7) {
+                // High-confidence deception - show alert
+                const alert = SpeechBubble.createDeceptionAlert(speech, player);
+                deceptionAlerts.insertBefore(alert, deceptionAlerts.firstChild);
+
+                // Keep only last 5 alerts
+                while (deceptionAlerts.children.length > 5) {
+                    deceptionAlerts.removeChild(deceptionAlerts.lastChild);
+                }
+            }
+        });
+
+        /**
+         * Update game state display
+         */
+        function updateGameState() {
+            const state = spectatorState.gameState;
+            const header = document.getElementById('spectator-header');
+            const phaseIndicator = document.getElementById('phaseIndicator');
+
+            // Game info
+            if (spectatorState.gameId) {
+                gameId.textContent = spectatorState.gameId.substring(0, 8);
+            }
+
+            // Update phase with color coding
+            const phase = state.phase || '-';
+            gamePhase.textContent = phase;
+            gameRound.textContent = state.round || '0';
+
+            // Update header phase class and indicator
+            const phaseMap = {
+                'nomination': { class: 'phase-nomination', text: '👥 Nomination Phase', color: '#667eea' },
+                'voting': { class: 'phase-voting', text: '🗳️ Voting Phase', color: '#ffd93d' },
+                'legislative': { class: 'phase-legislative', text: '📜 Legislative Phase', color: '#f59e0b' },
+                'executive': { class: 'phase-executive', text: '⚡ Executive Action', color: '#ef4444' },
+                'gameover': { class: 'phase-gameover', text: '🏁 Game Over', color: '#10b981' }
+            };
+
+            const currentPhase = phaseMap[phase.toLowerCase()] || phaseMap['nomination'];
+
+            // Update header class
+            header.className = currentPhase.class;
+
+            // Update phase indicator
+            if (phaseIndicator) {
+                phaseIndicator.textContent = `[${currentPhase.text}]`;
+                phaseIndicator.style.color = currentPhase.color;
+            }
+
+            // Policy tracks
+            updatePolicyTrack(liberalPolicies, state.liberalPolicies, 5, 'liberal');
+            updatePolicyTrack(fascistPolicies, state.fascistPolicies, 6, 'fascist');
+
+            // Players list
+            updatePlayersList();
+
+            // Connection status
+            if (spectatorState.ws && spectatorState.ws.readyState === WebSocket.OPEN) {
+                statusIndicator.classList.remove('disconnected');
+                statusText.textContent = 'Connected';
+            } else {
+                statusIndicator.classList.add('disconnected');
+                statusText.textContent = 'Disconnected';
+            }
+        }
+
+        /**
+         * Update policy track visualization
+         */
+        function updatePolicyTrack(container, enacted, total, type) {
+            container.innerHTML = '';
+
+            for (let i = 0; i < total; i++) {
+                const dot = document.createElement('div');
+                dot.className = 'policy-dot';
+                if (i < enacted) {
+                    dot.classList.add('enacted', type);
+                }
+                container.appendChild(dot);
+            }
+
+            // Update progress counter
+            const countId = type === 'liberal' ? 'liberalCount' : 'fascistCount';
+            const countEl = document.getElementById(countId);
+            if (countEl) {
+                countEl.textContent = `${enacted} / ${total}`;
+            }
+        }
+
+        /**
+         * Update players list
+         */
+        function updatePlayersList() {
+            playersList.innerHTML = '';
+
+            const players = spectatorState.getAllPlayers();
+            players.forEach(player => {
+                const card = document.createElement('div');
+                card.className = 'player-card';
+                if (!player.isAlive) {
+                    card.classList.add('dead');
+                }
+
+                const name = document.createElement('div');
+                name.className = 'player-name';
+                name.textContent = player.name;
+
+                const role = document.createElement('div');
+                role.className = `player-role ${player.role ? player.role.toLowerCase() : ''}`;
+                role.textContent = player.role || 'Unknown';
+
+                card.appendChild(name);
+                card.appendChild(role);
+                playersList.appendChild(card);
+            });
+        }
+
+        /**
+         * Update deception statistics
+         */
+        function updateDeceptionStats() {
+            const stats = spectatorState.getDeceptionStats();
+
+            totalSpeeches.textContent = stats.totalSpeeches;
+            deceptiveSpeeches.textContent = stats.deceptiveSpeeches;
+
+            const rate = stats.totalSpeeches > 0
+                ? Math.round((stats.deceptiveSpeeches / stats.totalSpeeches) * 100)
+                : 0;
+            deceptionRate.textContent = rate;
+
+            // Update by-player stats
+            playerDeceptionStats.innerHTML = '';
+
+            Object.entries(stats.byPlayer).forEach(([playerName, playerStats]) => {
+                if (playerStats.total === 0) return;
+
+                const statCard = document.createElement('div');
+                statCard.className = 'metric-card';
+                statCard.style.marginBottom = '10px';
+
+                const nameEl = document.createElement('div');
+                nameEl.className = 'metric-label';
+                nameEl.textContent = playerName;
+
+                const valueEl = document.createElement('div');
+                valueEl.className = 'metric-value';
+                valueEl.style.fontSize = '20px';
+                valueEl.textContent = `${playerStats.deceptive}/${playerStats.total}`;
+
+                const rateEl = document.createElement('div');
+                rateEl.className = 'metric-label';
+                rateEl.textContent = `${Math.round(playerStats.deceptionRate * 100)}% deception`;
+
+                statCard.appendChild(nameEl);
+                statCard.appendChild(valueEl);
+                statCard.appendChild(rateEl);
+
+                playerDeceptionStats.appendChild(statCard);
+            });
+        }
+
+        /**
+         * Clear reasoning bubbles
+         */
+        function clearReasoning() {
+            reasoningContainer.innerHTML = '';
+            const empty = ThoughtBubble.createEmptyState();
+            reasoningContainer.appendChild(empty);
+            hasShownReasoningEmpty = false;
+        }
+
+        /**
+         * Clear speech bubbles
+         */
+        function clearSpeeches() {
+            speechContainer.innerHTML = '';
+            const empty = SpeechBubble.createEmptyState();
+            speechContainer.appendChild(empty);
+            hasShownSpeechEmpty = false;
+        }
+
+        /**
+         * Initialize the spectator UI
+         */
+        function initialize() {
+            console.log('🎭 Initializing Secret Hitler Spectator UI (Phase 1)');
+
+            // Show empty states initially
+            reasoningContainer.appendChild(ThoughtBubble.createEmptyState());
+            speechContainer.appendChild(SpeechBubble.createEmptyState());
+
+            // Get WebSocket URL from query params or default
+            const urlParams = new URLSearchParams(window.location.search);
+            const wsUrl = urlParams.get('ws') || 'ws://localhost:8765';
+
+            // Connect to WebSocket
+            console.log(`Connecting to ${wsUrl}...`);
+            spectatorState.connect(wsUrl);
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', initialize);
+    </script>
+</body>
+</html>
