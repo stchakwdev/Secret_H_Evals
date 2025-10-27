@@ -36,11 +36,19 @@ cp .env.example .env
 # Run single 5-player game
 python run_game.py --players 5
 
+# Run with database logging (for Inspect AI integration)
+python run_game.py --players 5 --enable-db-logging
+
 # Run batch evaluation (10 games)
 python run_game.py --batch --games 10 --players 5
 
 # Use specific model
 python run_game.py --model anthropic/claude-3-sonnet
+
+# Full research workflow
+python run_game.py --batch --games 20 --players 7 --enable-db-logging
+python scripts/export_to_inspect.py --all
+python scripts/analyze_with_inspect.py
 ```
 
 ## Architecture
@@ -58,12 +66,44 @@ config/
 └── openrouter_config.py   # Model configurations and routing logic
 
 game_logging/
-└── game_logger.py         # Multi-level logging for research analysis
+└── game_logger.py         # Multi-level logging with database support
+
+evaluation/
+├── database_schema.py     # SQLite schema for structured storage
+├── inspect_adapter.py     # Inspect AI format converter
+└── README.md             # Detailed Inspect integration guide
+
+scripts/
+├── export_to_inspect.py      # Batch export to Inspect format
+├── analyze_with_inspect.py   # Statistical analysis
+├── migrate_historical.py     # Import historical logs
+└── generate_inspect_report.py # Report generation
 
 experiments/
 ├── batch_runner.py        # Parallel game execution
 └── analytics.py           # Statistical analysis tools
 ```
+
+## Recent Updates
+
+### Version 1.1.0 (October 2025)
+
+**Critical Bug Fixes**:
+- Fixed JSON serialization error for Enum types (PlayerType) in database logging
+- Fixed policy deck reshuffling logic to handle edge cases when deck runs low
+- Improved fallback policy selection with graceful degradation
+
+**New Features**:
+- Complete Inspect AI integration for standardized evaluation format
+- SQLite database storage for structured game data
+- CLI entry point (`run_game.py`) with batch evaluation support
+- Export and analysis scripts for research workflows
+- Comprehensive end-to-end testing with real game data
+
+**Documentation**:
+- Added INSPECT_INTEGRATION.md with technical implementation details
+- Added TEST_RESULTS.md with full verification results
+- Updated README with new features and examples
 
 ## Research Features
 
@@ -89,6 +129,45 @@ The framework generates multi-level logs for detailed behavioral analysis:
 - Real-time cost tracking per model and decision type
 - Configurable cost limits and alerts
 - Support for low-cost models (DeepSeek V3.2 Exp default)
+
+### Inspect AI Integration
+
+The framework includes **Inspect AI** integration for standardized evaluation compatible with AI safety research standards:
+
+**Features**:
+- **SQLite Database**: Structured storage for games, player decisions, and API requests
+- **Inspect Format Export**: Automatic conversion to standardized evaluation format
+- **Batch Processing**: Export and analyze multiple games efficiently
+- **Statistical Analysis**: Deception detection, win rates, cost analysis
+- **Interactive Visualization**: Use Inspect's browser UI for exploration
+- **Research-Ready Metrics**: Standardized metrics recognized by the AI safety community
+
+**Workflow**:
+```bash
+# 1. Run games with database logging
+python run_game.py --batch --games 20 --players 7 --enable-db-logging
+
+# 2. Export to Inspect format
+python scripts/export_to_inspect.py --all
+
+# 3. Run statistical analysis
+python scripts/analyze_with_inspect.py
+
+# 4. View with Inspect UI (optional)
+inspect view start data/inspect_logs/*.json
+
+# 5. Generate shareable reports
+python scripts/generate_inspect_report.py --report
+```
+
+**Output Files**:
+- `data/games.db` - SQLite database with all game data
+- `data/inspect_logs/*.json` - Inspect-formatted evaluation logs
+- `reports/inspect_analysis.csv` - Detailed player decision analysis
+- `reports/game_outcomes.csv` - Game results and metrics
+- `reports/analysis_summary.json` - Aggregated statistics
+
+See [INSPECT_INTEGRATION.md](INSPECT_INTEGRATION.md) for technical details and [evaluation/README.md](evaluation/README.md) for usage guide.
 
 ## Model Configuration
 

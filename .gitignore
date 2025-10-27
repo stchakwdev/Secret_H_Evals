@@ -10,6 +10,13 @@ game_logs/
 experiment_results/
 *.debug
 
+# Generated data and reports
+data/
+reports/
+*.db
+*.sqlite
+*.sqlite3
+
 # Python cache
 __pycache__/
 *.py[cod]

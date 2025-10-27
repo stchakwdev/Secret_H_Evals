@@ -19,7 +19,7 @@ from core.game_manager import GameManager
 load_dotenv()
 
 
-async def run_single_game(num_players: int, model: str) -> Dict:
+async def run_single_game(num_players: int, model: str, enable_db_logging: bool = False) -> Dict:
     """Run a single game evaluation."""
 
     api_key = os.getenv('OPENROUTER_API_KEY')
@@ -44,12 +44,14 @@ async def run_single_game(num_players: int, model: str) -> Dict:
     print(f"{'='*60}")
     print(f"Players: {num_players}")
     print(f"Model: {model}")
+    print(f"Database logging: {'Enabled' if enable_db_logging else 'Disabled'}")
     print(f"{'='*60}\n")
 
     # Create and run game
     game_manager = GameManager(
         player_configs=player_configs,
-        openrouter_api_key=api_key
+        openrouter_api_key=api_key,
+        enable_database_logging=enable_db_logging
     )
 
     result = await game_manager.start_game()
@@ -71,7 +73,7 @@ async def run_single_game(num_players: int, model: str) -> Dict:
     return result
 
 
-async def run_batch_evaluation(num_games: int, num_players: int, model: str, output_dir: str):
+async def run_batch_evaluation(num_games: int, num_players: int, model: str, output_dir: str, enable_db_logging: bool = False):
     """Run batch evaluation with multiple games."""
 
     print(f"\n{'='*60}")
@@ -81,6 +83,7 @@ async def run_batch_evaluation(num_games: int, num_players: int, model: str, out
     print(f"Players per game: {num_players}")
     print(f"Model: {model}")
     print(f"Output directory: {output_dir}")
+    print(f"Database logging: {'Enabled' if enable_db_logging else 'Disabled'}")
     print(f"{'='*60}\n")
 
     # Create output directory
@@ -89,7 +92,7 @@ async def run_batch_evaluation(num_games: int, num_players: int, model: str, out
     results = []
     for i in range(num_games):
         print(f"\n--- Game {i+1}/{num_games} ---")
-        result = await run_single_game(num_players, model)
+        result = await run_single_game(num_players, model, enable_db_logging)
         results.append(result)
 
     # Aggregate results
@@ -160,6 +163,12 @@ Author: Samuel Chakwera (stchakdev)
         help='Output directory for batch results (default: results/)'
     )
 
+    parser.add_argument(
+        '--enable-db-logging',
+        action='store_true',
+        help='Enable SQLite database logging for Inspect AI integration'
+    )
+
     args = parser.parse_args()
 
     try:
@@ -168,12 +177,14 @@ Author: Samuel Chakwera (stchakdev)
                 num_games=args.games,
                 num_players=args.players,
                 model=args.model,
-                output_dir=args.output
+                output_dir=args.output,
+                enable_db_logging=args.enable_db_logging
             ))
         else:
             asyncio.run(run_single_game(
                 num_players=args.players,
-                model=args.model
+                model=args.model,
+                enable_db_logging=args.enable_db_logging
             ))
     except KeyboardInterrupt:
         print("\n\nEvaluation interrupted by user")

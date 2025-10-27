@@ -322,7 +322,15 @@ class GameState:
             self.policy_deck.extend(self.discard_pile)
             self.discard_pile = []
             random.shuffle(self.policy_deck)
-        
+
+        # Check if we have enough policies even after reshuffling
+        if len(self.policy_deck) < count:
+            # This shouldn't happen in a normal game (17 total policies)
+            # Return whatever we have
+            drawn = self.policy_deck[:]
+            self.policy_deck = []
+            return drawn
+
         drawn = self.policy_deck[:count]
         self.policy_deck = self.policy_deck[count:]
         return drawn

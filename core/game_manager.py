@@ -33,16 +33,18 @@ class PlayerType(Enum):
 class GameManager:
     """Manages a complete Secret Hitler game with LLM agents and human players."""
     
-    def __init__(self, 
-                 player_configs: List[Dict[str, str]], 
+    def __init__(self,
+                 player_configs: List[Dict[str, str]],
                  openrouter_api_key: str,
                  game_id: Optional[str] = None,
                  human_action_callback: Optional[callable] = None,
                  human_timeout: float = 60.0,
-                 spectator_callback: Optional[callable] = None):
+                 spectator_callback: Optional[callable] = None,
+                 enable_database_logging: bool = False,
+                 db_path: str = "data/games.db"):
         """
         Initialize game manager.
-        
+
         Args:
             player_configs: List of player configs with 'id', 'name', 'model', 'type'
             openrouter_api_key: OpenRouter API key
@@ -50,16 +52,22 @@ class GameManager:
             human_action_callback: Callback function for human player actions
             human_timeout: Timeout for human actions in seconds
             spectator_callback: Callback function for spectator events
+            enable_database_logging: Enable SQLite database logging for Inspect AI integration
+            db_path: Path to SQLite database file
         """
         self.game_id = game_id or str(uuid.uuid4())
         self.player_configs = player_configs
         self.game_state = GameState(player_configs, self.game_id)
-        
+
         # LLM client
         self.openrouter_client = OpenRouterClient(openrouter_api_key)
-        
+
         # Logging
-        self.logger = GameLogger(self.game_id)
+        self.logger = GameLogger(
+            self.game_id,
+            enable_database_logging=enable_database_logging,
+            db_path=db_path
+        )
         
         # Prompt templates
         self.prompt_templates = PromptTemplates()
@@ -777,8 +785,16 @@ class GameManager:
             
             # Fallback: use first 2 policies if parsing fails
             print("🔄 Using fallback policy selection (first 2 policies)")
+            print(f"🔄 Available policies: {len(policies)} - {[p.value for p in policies]}")
+            if len(policies) < 2:
+                await self.logger.log_error(f"Insufficient policies for president: only {len(policies)} available")
+                # Cannot continue - end game
+                self.game_state.is_game_over = True
+                self.game_state.winner = "error"
+                self.game_state.win_condition = f"Game error: insufficient policies ({len(policies)} < 2)"
+                return
             kept_policies = policies[:2]
-            discarded_policy_value = policies[2].value
+            discarded_policy_value = policies[2].value if len(policies) >= 3 else "unknown"
             
             success = self.game_state.choose_policies_president(policies, kept_policies)
             if success:
