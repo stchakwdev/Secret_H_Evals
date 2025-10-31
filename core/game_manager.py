@@ -17,7 +17,7 @@ from .game_events import (
     ReasoningEvent,
     SpeechEvent
 )
-from agents.openrouter_client import OpenRouterClient, APIResponse, AIDecisionResponse
+from agents.openrouter_client import OpenRouterClient, APIResponse
 from game_logging.game_logger import GameLogger
 from agents.prompt_templates import PromptTemplates
 from web_bridge.spectator_adapter import SpectatorAdapter
@@ -735,9 +735,14 @@ class GameManager:
         """Handle president policy selection phase."""
         president_id = self.game_state.government.president
         president = self.game_state.players[president_id]
-        
+
         # Draw 3 policies
         policies = self.game_state.draw_policies(3)
+
+        # Check if draw failed due to insufficient policies
+        if not policies:
+            await self.logger.log_error(f"Game ended: {self.game_state.win_condition}")
+            return
         
         prompt = self.prompt_templates.get_president_policy_prompt(
             president_name=president.name,

@@ -326,10 +326,11 @@ class GameState:
         # Check if we have enough policies even after reshuffling
         if len(self.policy_deck) < count:
             # This shouldn't happen in a normal game (17 total policies)
-            # Return whatever we have
-            drawn = self.policy_deck[:]
-            self.policy_deck = []
-            return drawn
+            # End the game gracefully instead of returning partial draw
+            self.is_game_over = True
+            self.winner = "error"
+            self.win_condition = f"Game error: insufficient policies (need {count}, have {len(self.policy_deck)} in deck, {len(self.discard_pile)} in discard)"
+            return []  # Return empty list to signal error
 
         drawn = self.policy_deck[:count]
         self.policy_deck = self.policy_deck[count:]
@@ -433,13 +434,21 @@ class GameState:
     
     def _chaos_round(self):
         """Handle chaos when 3 elections fail."""
-        policy = self.draw_policies(1)[0]
+        policies = self.draw_policies(1)
+        if not policies:
+            # Edge case: no policies available (should never happen in normal game)
+            self.is_game_over = True
+            self.winner = "error"
+            self.win_condition = "Game error: no policies available for chaos round"
+            return
+
+        policy = policies[0]
         game_over = self.policy_board.enact_policy(policy)
-        
+
         self._log_action("chaos_policy", {
             "policy": policy.value
         })
-        
+
         if game_over:
             winner = "liberal" if policy == Policy.LIBERAL else "fascist"
             self._end_game(winner, "policy_majority")
@@ -479,11 +488,17 @@ class GameState:
         """Chancellor chooses final policy to enact."""
         if self.phase != GamePhase.LEGISLATIVE_CHANCELLOR:
             return False
-        
+
         # Handle veto
         if veto_requested and self.policy_board.veto_unlocked():
             return self._request_veto()
-        
+
+        # Discard the non-chosen policy
+        if self.current_legislative_policies:
+            for policy in self.current_legislative_policies:
+                if policy != chosen_policy:
+                    self.discard_policy(policy)
+
         # Enact policy
         game_over = self.policy_board.enact_policy(chosen_policy)
         
