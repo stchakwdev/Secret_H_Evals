@@ -768,7 +768,7 @@ class GameManager:
             # Calculate discarded policy safely
             discarded_policies = [p for p in policies if p not in kept_policies]
             discarded_policy_value = discarded_policies[0].value if discarded_policies else "unknown"
-            
+
             success = self.game_state.choose_policies_president(policies, kept_policies)
             if success:
                 await self.logger.log_player_action(
@@ -782,8 +782,14 @@ class GameManager:
                     }
                 )
                 print(f"✅ President {president.name} kept {[p.value for p in kept_policies]}, discarded {discarded_policy_value}")
+                return  # Successfully processed, exit function
             else:
-                await self.logger.log_error("Failed to process president policy selection")
+                # Critical error: phase transition failed
+                await self.logger.log_error("Failed to process president policy selection - phase transition failed")
+                self.game_state.is_game_over = True
+                self.game_state.winner = "error"
+                self.game_state.win_condition = "Game error: president policy selection failed"
+                return
         else:
             print(f"❌ Invalid policy selection from {president.name}: kept_policies={kept_policies}")
             print(f"   Original response: {response_content}")
@@ -816,7 +822,11 @@ class GameManager:
                 )
                 print(f"✅ Fallback: President {president.name} kept {[p.value for p in kept_policies]}, discarded {discarded_policy_value}")
             else:
-                await self.logger.log_error("Failed to process fallback president policy selection")
+                # Critical error: fallback also failed to transition phase
+                await self.logger.log_error("Failed to process fallback president policy selection - phase transition failed")
+                self.game_state.is_game_over = True
+                self.game_state.winner = "error"
+                self.game_state.win_condition = "Game error: fallback president policy selection failed"
     
     async def _handle_chancellor_legislative_phase(self):
         """Handle chancellor policy selection phase."""
