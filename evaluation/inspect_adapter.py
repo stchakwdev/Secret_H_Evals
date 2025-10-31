@@ -17,8 +17,11 @@ class SecretHitlerInspectAdapter:
     """Converts Secret Hitler games to Inspect format for analysis."""
 
     def __init__(self, game_logs_dir: str = "./logs", db_path: str = "./data/games.db"):
-        self.game_logs_dir = Path(game_logs_dir)
-        self.inspect_output_dir = Path("./data/inspect_logs")
+        # Resolve paths relative to project root (llm-game-engine/)
+        project_root = Path(__file__).parent.parent
+
+        self.game_logs_dir = Path(game_logs_dir) if Path(game_logs_dir).is_absolute() else project_root / game_logs_dir
+        self.inspect_output_dir = project_root / "data" / "inspect_logs"
         self.inspect_output_dir.mkdir(exist_ok=True, parents=True)
         self.db = DatabaseManager(db_path)
 
