@@ -101,9 +101,9 @@ experiments/
 - Comprehensive end-to-end testing with real game data
 
 **Documentation**:
-- Added INSPECT_INTEGRATION.md with technical implementation details
-- Added TEST_RESULTS.md with full verification results
-- Updated README with new features and examples
+- Comprehensive Inspect AI integration guide in `evaluation/README.md`
+- Updated main README with new features and research workflows
+- Added CHANGELOG.md for version tracking
 
 ## Research Features
 
@@ -167,7 +167,7 @@ python scripts/generate_inspect_report.py --report
 - `reports/game_outcomes.csv` - Game results and metrics
 - `reports/analysis_summary.json` - Aggregated statistics
 
-See [INSPECT_INTEGRATION.md](INSPECT_INTEGRATION.md) for technical details and [evaluation/README.md](evaluation/README.md) for usage guide.
+See [evaluation/README.md](evaluation/README.md) for comprehensive technical details and usage guide.
 
 ## Model Configuration
 
