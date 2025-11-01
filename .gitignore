@@ -3,9 +3,6 @@
 .env.local
 .env.*.local
 
-# Project documentation
-CLAUDE.md
-
 # Logs and debug files
 *.log
 logs/
@@ -14,13 +11,9 @@ experiment_results/
 *.debug
 
 # Generated data and reports
-data/games.db
-data/inspect_logs/*.json
-reports/*.csv
-reports/*.json
-visualizations/*.png
-visualizations/*.json
-*.db-journal
+data/
+reports/
+*.db
 *.sqlite
 *.sqlite3
 
@@ -60,3 +53,7 @@ test_*.js
 debug_*.html
 quick_*.py
 fix_*.py
+
+# Internal development tracking (DO NOT COMMIT)
+batch_run_log.md
+CLAUDE.md

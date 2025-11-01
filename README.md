@@ -15,25 +15,6 @@ This framework implements Secret Hitler in Python to evaluate LLM capabilities i
 
 The framework provides a complete reimplementation of Secret Hitler game mechanics with comprehensive logging and analysis tools for behavioral research.
 
-## Visual Showcase
-
-The framework includes comprehensive visualization tools to analyze LLM strategic gameplay and deception patterns.
-
-### Policy Progression Timeline
-Track the strategic race between Liberal and Fascist teams across multiple games, showing policy enactments by turn and final outcomes.
-
-![Policy Progression Timeline](docs/images/policy_progression_timeline.png)
-
-### Deception Analysis
-Analyze when and how often LLMs employ deceptive strategies by comparing private reasoning with public statements.
-
-![Deception Analysis](docs/images/deception_analysis.png)
-
-### Strategic Patterns
-Comprehensive behavioral analysis showing vote alignment, coalition formation, and multi-agent coordination dynamics.
-
-![Strategic Patterns](docs/images/strategic_patterns.png)
-
 ## Installation
 
 ```bash
@@ -280,6 +261,25 @@ All game data is logged in structured formats suitable for:
 - Visualization (trust networks, belief evolution)
 - Qualitative analysis (reasoning traces, communication logs)
 - Cost analysis (per model, per decision type)
+
+## Visual Showcase
+
+The framework includes comprehensive visualization tools to analyze LLM strategic gameplay and deception patterns.
+
+### Policy Progression Timeline
+Track the strategic race between Liberal and Fascist teams across multiple games, showing policy enactments by turn and final outcomes.
+
+![Policy Progression Timeline](docs/images/policy_progression_timeline.png)
+
+### Deception Analysis
+Analyze when and how often LLMs employ deceptive strategies by comparing private reasoning with public statements.
+
+![Deception Analysis](docs/images/deception_analysis.png)
+
+### Strategic Patterns
+Comprehensive behavioral analysis showing vote alignment, coalition formation, and multi-agent coordination dynamics.
+
+![Strategic Patterns](docs/images/strategic_patterns.png)
 
 ## Citation
 
