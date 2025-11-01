@@ -15,6 +15,25 @@ This framework implements Secret Hitler in Python to evaluate LLM capabilities i
 
 The framework provides a complete reimplementation of Secret Hitler game mechanics with comprehensive logging and analysis tools for behavioral research.
 
+## Visual Showcase
+
+The framework includes comprehensive visualization tools to analyze LLM strategic gameplay and deception patterns.
+
+### Policy Progression Timeline
+Track the strategic race between Liberal and Fascist teams across multiple games, showing policy enactments by turn and final outcomes.
+
+![Policy Progression Timeline](docs/images/policy_progression_timeline.png)
+
+### Deception Analysis
+Analyze when and how often LLMs employ deceptive strategies by comparing private reasoning with public statements.
+
+![Deception Analysis](docs/images/deception_analysis.png)
+
+### Strategic Patterns
+Comprehensive behavioral analysis showing vote alignment, coalition formation, and multi-agent coordination dynamics.
+
+![Strategic Patterns](docs/images/strategic_patterns.png)
+
 ## Installation
 
 ```bash
@@ -115,7 +134,6 @@ experiments/
 - Comprehensive end-to-end testing with real game data
 
 **Documentation**:
-- Added INSPECT_INTEGRATION.md with technical implementation details
 - Added TEST_RESULTS.md with full verification results
 - Updated README with new features and examples
 
@@ -181,7 +199,7 @@ python scripts/generate_inspect_report.py --report
 - `reports/game_outcomes.csv` - Game results and metrics
 - `reports/analysis_summary.json` - Aggregated statistics
 
-See [INSPECT_INTEGRATION.md](INSPECT_INTEGRATION.md) for technical details and [evaluation/README.md](evaluation/README.md) for usage guide.
+See [evaluation/README.md](evaluation/README.md) for detailed usage guide.
 
 ## Model Configuration
 
