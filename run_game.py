@@ -9,9 +9,12 @@ import asyncio
 import argparse
 import os
 import sys
+import json
+import uuid
+from datetime import datetime
 from pathlib import Path
 from dotenv import load_dotenv
-from typing import List, Dict
+from typing import List, Dict, Optional
 
 from core.game_manager import GameManager
 
@@ -73,40 +76,105 @@ async def run_single_game(num_players: int, model: str, enable_db_logging: bool 
     return result
 
 
-async def run_batch_evaluation(num_games: int, num_players: int, model: str, output_dir: str, enable_db_logging: bool = False):
+async def run_batch_evaluation(
+    num_games: int,
+    num_players: int,
+    model: str,
+    output_dir: str,
+    enable_db_logging: bool = False,
+    batch_id: Optional[str] = None,
+    batch_tag: Optional[str] = None
+):
     """Run batch evaluation with multiple games."""
+
+    # Generate batch_id if not provided
+    if batch_id is None:
+        batch_id = f"batch-{datetime.now().strftime('%Y%m%d-%H%M%S')}-{str(uuid.uuid4())[:8]}"
+
+    # Create batch metadata
+    start_time = datetime.now()
+    batch_metadata = {
+        "batch_id": batch_id,
+        "batch_tag": batch_tag,
+        "start_time": start_time.strftime('%Y-%m-%d %H:%M:%S'),
+        "target_games": num_games,
+        "players": num_players,
+        "model": model,
+        "output_dir": output_dir,
+        "database_logging": enable_db_logging,
+        "log_dir": str(Path(__file__).parent / "logs")
+    }
+
+    # Write metadata to logs/.current_batch
+    logs_dir = Path(__file__).parent / "logs"
+    logs_dir.mkdir(parents=True, exist_ok=True)
+    metadata_file = logs_dir / ".current_batch"
+
+    with open(metadata_file, 'w') as f:
+        json.dump(batch_metadata, f, indent=2)
 
     print(f"\n{'='*60}")
     print(f"Batch Evaluation")
     print(f"{'='*60}")
+    print(f"Batch ID: {batch_id}")
+    if batch_tag:
+        print(f"Batch tag: {batch_tag}")
     print(f"Games: {num_games}")
     print(f"Players per game: {num_players}")
     print(f"Model: {model}")
     print(f"Output directory: {output_dir}")
     print(f"Database logging: {'Enabled' if enable_db_logging else 'Disabled'}")
+    print(f"Metadata saved to: {metadata_file}")
     print(f"{'='*60}\n")
 
     # Create output directory
     Path(output_dir).mkdir(parents=True, exist_ok=True)
 
     results = []
+    game_durations = []
+    batch_start_time = datetime.now()
+
     for i in range(num_games):
         print(f"\n--- Game {i+1}/{num_games} ---")
+        game_start = datetime.now()
         result = await run_single_game(num_players, model, enable_db_logging)
+        game_end = datetime.now()
+
+        game_duration = (game_end - game_start).total_seconds()
+        game_durations.append(game_duration)
         results.append(result)
 
+        print(f"Game {i+1} completed in {game_duration/60:.1f} minutes ({game_duration:.0f} seconds)")
+
     # Aggregate results
-    liberal_wins = sum(1 for r in results if r.get('winner') == 'liberals')
-    fascist_wins = sum(1 for r in results if r.get('winner') == 'fascists')
+    batch_end_time = datetime.now()
+    batch_duration = (batch_end_time - batch_start_time).total_seconds()
+
+    liberal_wins = sum(1 for r in results if r.get('winner') == 'liberal')
+    fascist_wins = sum(1 for r in results if r.get('winner') == 'fascist')
     total_cost = sum(r.get('cost_summary', {}).get('total_cost', 0) for r in results)
+
+    # Timing statistics
+    avg_duration = sum(game_durations) / len(game_durations) if game_durations else 0
+    min_duration = min(game_durations) if game_durations else 0
+    max_duration = max(game_durations) if game_durations else 0
+    games_per_hour = (num_games / batch_duration) * 3600 if batch_duration > 0 else 0
 
     print(f"\n{'='*60}")
     print(f"Batch Evaluation Complete")
     print(f"{'='*60}")
     print(f"Liberal wins: {liberal_wins}/{num_games} ({liberal_wins/num_games*100:.1f}%)")
     print(f"Fascist wins: {fascist_wins}/{num_games} ({fascist_wins/num_games*100:.1f}%)")
+    print(f"\nTiming Statistics:")
+    print(f"Total batch runtime: {batch_duration/60:.1f} minutes ({batch_duration:.0f} seconds)")
+    print(f"Average game duration: {avg_duration/60:.1f} minutes ({avg_duration:.0f} seconds)")
+    print(f"Min/Max game duration: {min_duration/60:.1f} - {max_duration/60:.1f} minutes")
+    print(f"Games per hour: {games_per_hour:.1f}")
+    print(f"\nCost Statistics:")
     print(f"Total cost: ${total_cost:.4f}")
     print(f"Average cost per game: ${total_cost/num_games:.4f}")
+    print(f"Cost per minute: ${total_cost/(batch_duration/60):.4f}")
+    print(f"Time efficiency: {avg_duration/total_cost if total_cost > 0 else 0:.0f} seconds per dollar")
     print(f"{'='*60}\n")
 
 
@@ -169,6 +237,18 @@ Author: Samuel Chakwera (stchakdev)
         help='Enable SQLite database logging for Inspect AI integration'
     )
 
+    parser.add_argument(
+        '--batch-id',
+        type=str,
+        help='Custom batch identifier (auto-generated if not provided)'
+    )
+
+    parser.add_argument(
+        '--batch-tag',
+        type=str,
+        help='Human-readable batch tag/description'
+    )
+
     args = parser.parse_args()
 
     try:
@@ -178,7 +258,9 @@ Author: Samuel Chakwera (stchakdev)
                 num_players=args.players,
                 model=args.model,
                 output_dir=args.output,
-                enable_db_logging=args.enable_db_logging
+                enable_db_logging=args.enable_db_logging,
+                batch_id=args.batch_id,
+                batch_tag=args.batch_tag
             ))
         else:
             asyncio.run(run_single_game(

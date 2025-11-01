@@ -86,6 +86,20 @@ experiments/
 
 ## Recent Updates
 
+### Version 1.1.1 (November 2025)
+
+**Critical Bug Fixes**:
+- Fixed batch evaluation winner aggregation display (singular/plural mismatch)
+- Fixed log path resolution - logs now correctly created in `llm-game-engine/logs/` regardless of working directory
+- Fixed batch metadata log directory references in progress tracker
+
+**New Tools**:
+- Batch progress tracker (`check_batch_progress.py`) with real-time game state monitoring
+- Auto-detection of running batches from metadata
+- Watch mode with configurable refresh intervals
+- Policy progression visualization
+- Example: `python check_batch_progress.py --watch`
+
 ### Version 1.1.0 (October 2025)
 
 **Critical Bug Fixes**:
@@ -101,9 +115,9 @@ experiments/
 - Comprehensive end-to-end testing with real game data
 
 **Documentation**:
-- Comprehensive Inspect AI integration guide in `evaluation/README.md`
-- Updated main README with new features and research workflows
-- Added CHANGELOG.md for version tracking
+- Added INSPECT_INTEGRATION.md with technical implementation details
+- Added TEST_RESULTS.md with full verification results
+- Updated README with new features and examples
 
 ## Research Features
 
@@ -167,7 +181,7 @@ python scripts/generate_inspect_report.py --report
 - `reports/game_outcomes.csv` - Game results and metrics
 - `reports/analysis_summary.json` - Aggregated statistics
 
-See [evaluation/README.md](evaluation/README.md) for comprehensive technical details and usage guide.
+See [INSPECT_INTEGRATION.md](INSPECT_INTEGRATION.md) for technical details and [evaluation/README.md](evaluation/README.md) for usage guide.
 
 ## Model Configuration
 

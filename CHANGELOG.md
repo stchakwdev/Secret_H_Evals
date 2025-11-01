@@ -4,6 +4,31 @@ All notable changes to the Secret Hitler LLM Evaluation Framework will be docume
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.1.1] - 2025-11-01
+
+### Fixed
+- **Batch Evaluation**: Winner aggregation display (singular/plural mismatch in run_game.py)
+  - Changed winner string comparison from plural ('liberals'/'fascists') to singular ('liberal'/'fascist')
+  - Batch summaries now correctly display win counts
+- **Log Path Resolution**: Logs created in parent repository instead of llm-game-engine/logs/
+  - Fixed GameLogger initialization to use absolute paths (core/game_manager.py:67-73)
+  - Fixed batch metadata log directory path (run_game.py:105, 109)
+  - Fixed progress tracker log references (check_batch_progress.py:17, 123, 265)
+  - All logs now correctly created in llm-game-engine/logs/ regardless of working directory
+
+### Added
+- **Batch Progress Tracker**: Real-time batch monitoring tool (check_batch_progress.py)
+  - Auto-detects running batches from metadata
+  - Displays game state, policy progression, and timing statistics
+  - Watch mode with configurable refresh interval
+  - Example: `python check_batch_progress.py --watch`
+
+### Verified
+- 3-game verification batch completed successfully (batch-20251101-104548)
+- All logs created in correct location (llm-game-engine/logs/)
+- Progress tracker functional with real-time game state display
+- Database logging operational
+
 ## [1.1.0] - 2025-10-27
 
 ### Added
@@ -65,5 +90,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Gemini series
 - Llama 3 series
 
+[1.1.1]: https://github.com/stchakwdev/Secret_H_Evals/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/stchakwdev/Secret_H_Evals/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/stchakwdev/Secret_H_Evals/releases/tag/v1.0.0
