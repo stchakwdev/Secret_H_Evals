@@ -526,21 +526,33 @@ class GameState:
         """Handle veto request."""
         # In this implementation, we'll assume president always agrees to veto
         # In a real game, this would require president confirmation
-        
+
+        # CRITICAL: Discard the 2 policies back to discard pile
+        # When veto is used, the 2 policies given to chancellor must return to circulation
+        if self.current_legislative_policies:
+            for policy in self.current_legislative_policies:
+                self.discard_policy(policy)
+            self.current_legislative_policies = []
+
         self.election_tracker.add_failure()
         self.government = Government()
         self.advance_president()
         self.phase = GamePhase.NOMINATION
-        
+
         self._log_action("veto_used", {
             "president": self.government.president,
             "chancellor": self.government.chancellor
         })
-        
+
         return True
     
     def _end_legislative_session(self):
         """End current legislative session."""
+        # Return any unprocessed policies to discard pile before clearing
+        if self.current_legislative_policies:
+            for policy in self.current_legislative_policies:
+                self.discard_policy(policy)
+        self.current_legislative_policies = []
         self.government = Government()
         self.advance_president()
         self.phase = GamePhase.NOMINATION
