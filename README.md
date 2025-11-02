@@ -281,6 +281,39 @@ Comprehensive behavioral analysis showing vote alignment, coalition formation, a
 
 ![Strategic Patterns](docs/images/strategic_patterns.png)
 
+## Experimental Results & Findings
+
+Analysis of 34+ complete games with 158 total evaluated scenarios reveals important insights into LLM strategic deception capabilities and limitations.
+
+### Key Findings
+
+**Strategic Deception Patterns**: LLMs demonstrate context-dependent deception with highest rates during legislative sessions (34.2%) and voting (32.1%), showing sophisticated understanding of when deception has strategic value. Deception rates vary significantly by player position (8.5% to 43.8%), suggesting adaptive strategic reasoning based on game state.
+
+**Game Completion Challenge**: 67.7% of games terminate due to excessive action loops rather than natural win conditions, indicating fundamental challenges in long-horizon strategic planning and multi-agent coordination with hidden information. Among completed games, Fascists win 60.8% (exploiting information advantages) vs Liberals 39.2%.
+
+**Cost-Effective Research**: DeepSeek V3.2 Exp enables large-scale strategic deception research at **~$0.22 per game** (4.48 games/$1), making comprehensive LLM capability evaluation accessible to academic research budgets. This represents a 97.5% cost reduction compared to GPT-4 Turbo for equivalent analysis depth.
+
+**Behavioral Insights**: Analysis reveals sophisticated deception techniques including plausibility engineering (matching statistical expectations), narrative consistency across multiple turns, and selective disclosure strategies. However, LLMs show consistent failure modes including statistical improbability errors and over-disclosure of hidden information.
+
+### Research Implications
+
+These findings have direct relevance for AI safety research:
+- **Deception Detection**: High base rates (20-35%) in strategic contexts make detection mechanisms critical
+- **Multi-Agent Coordination**: Coalition formation failures reveal fundamental LLM limitations in hidden information scenarios
+- **Strategic Planning Bounds**: Game completion issues suggest bounded rationality in adversarial long-horizon planning
+
+**Detailed Analysis**: See [results/RESEARCH_FINDINGS.md](results/RESEARCH_FINDINGS.md) for comprehensive tables, methodology, visualizations, and implications for AI safety research.
+
+**Reproduce Results**:
+```bash
+# Run your own batch evaluation
+python run_game.py --batch --games 20 --players 7 --enable-db-logging
+
+# Export and analyze
+python scripts/export_to_inspect.py --all
+python scripts/analyze_with_inspect.py
+```
+
 ## Citation
 
 If you use this framework in your research, please cite:
