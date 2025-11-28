@@ -17,6 +17,10 @@ from dotenv import load_dotenv
 from typing import List, Dict, Optional
 
 from core.game_manager import GameManager
+from config.model_comparison_config import (
+    ALL_MODELS, FREE_MODELS, PAID_MODELS, CURRENT_RUN_MODELS,
+    BatchConfig, print_cost_summary, get_model_by_id
+)
 
 # Load environment variables
 load_dotenv()
@@ -178,6 +182,113 @@ async def run_batch_evaluation(
     print(f"{'='*60}\n")
 
 
+async def run_model_comparison(
+    games_per_model: int,
+    num_players: int,
+    models: Optional[List[str]] = None,
+    output_dir: str = "results/comparisons",
+    enable_db_logging: bool = True,
+    concurrency: int = 3,
+    free_only: bool = False,
+    paid_only: bool = False,
+):
+    """
+    Run multi-model comparison experiment.
+
+    Args:
+        games_per_model: Number of games to run per model
+        num_players: Number of players per game
+        models: Specific model IDs to compare (None = use defaults)
+        output_dir: Output directory for results
+        enable_db_logging: Enable database logging
+        concurrency: Number of concurrent games
+        free_only: Only use free models
+        paid_only: Only use paid models
+    """
+    from experiments.model_comparator import ModelComparator
+
+    api_key = os.getenv('OPENROUTER_API_KEY')
+    if not api_key or api_key == 'your_openrouter_api_key_here':
+        print("Error: OPENROUTER_API_KEY not set in .env file")
+        sys.exit(1)
+
+    # Determine which models to use
+    if models:
+        # Use specific models provided
+        model_configs = [get_model_by_id(m) for m in models]
+        model_configs = [m for m in model_configs if m is not None]
+        if not model_configs:
+            print(f"Error: No valid models found from: {models}")
+            print("\nAvailable models:")
+            for m in ALL_MODELS:
+                print(f"  {m.openrouter_id} ({m.name})")
+            sys.exit(1)
+    elif free_only:
+        model_configs = FREE_MODELS
+    elif paid_only:
+        model_configs = PAID_MODELS
+    else:
+        model_configs = CURRENT_RUN_MODELS
+
+    # Create batch configuration
+    batch = BatchConfig(
+        name=f"comparison_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+        models=model_configs,
+        games_per_model=games_per_model,
+        description=f"Multi-model comparison: {len(model_configs)} models, {games_per_model} games each"
+    )
+
+    # Print cost summary
+    print_cost_summary(batch)
+
+    # Create and run comparator
+    comparator = ModelComparator(
+        api_key=api_key,
+        batch_config=batch,
+        output_dir=output_dir,
+        num_players=num_players,
+        enable_db_logging=enable_db_logging,
+    )
+
+    # Run comparison
+    progress = await comparator.run_comparison(concurrency=concurrency)
+
+    # Print summary
+    comparator.print_summary()
+
+    # Generate LaTeX table
+    latex = comparator.generate_latex_table()
+    latex_file = Path(output_dir) / f"{progress.comparison_id}_table.tex"
+    with open(latex_file, 'w') as f:
+        f.write(latex)
+    print(f"\nLaTeX table saved to: {latex_file}")
+
+    return progress
+
+
+def list_available_models():
+    """Print all available models for comparison."""
+    print(f"\n{'='*70}")
+    print("Available Models for Phase 4 Multi-Model Comparison")
+    print(f"{'='*70}\n")
+
+    print("FREE TIER (9 models):")
+    print(f"{'Model':<25} {'ID':<45} {'Context':>10}")
+    print("-" * 82)
+    for m in FREE_MODELS:
+        print(f"{m.name:<25} {m.openrouter_id:<45} {m.context_length:>10,}")
+
+    print(f"\nPAID TIER (2 models):")
+    print(f"{'Model':<25} {'ID':<45} {'$/M In':>8} {'$/M Out':>8}")
+    print("-" * 94)
+    for m in PAID_MODELS:
+        print(f"{m.name:<25} {m.openrouter_id:<45} ${m.input_cost_per_million:>6.2f} ${m.output_cost_per_million:>6.2f}")
+
+    print(f"\n{'='*70}")
+    print("Cost Estimate for Default Batch (500 games/model):")
+    print_cost_summary()
+
+
 def main():
     """Main entry point."""
     parser = argparse.ArgumentParser(
@@ -193,6 +304,18 @@ Examples:
 
   # Use specific model
   python run_game.py --model anthropic/claude-3-sonnet
+
+  # Run multi-model comparison (Phase 4)
+  python run_game.py --model-comparison --games-per-model 500
+
+  # Compare only free models
+  python run_game.py --model-comparison --games-per-model 100 --free-only
+
+  # Compare specific models
+  python run_game.py --model-comparison --games-per-model 50 --compare-models x-ai/grok-4.1-fast:free,deepseek/deepseek-chat
+
+  # List available models
+  python run_game.py --list-models
 
 Author: Samuel Chakwera (stchakdev)
         """
@@ -275,9 +398,70 @@ Author: Samuel Chakwera (stchakdev)
         help='Resume from previous batch progress (parallel mode only)'
     )
 
+    # Model comparison arguments (Phase 4)
+    parser.add_argument(
+        '--model-comparison',
+        action='store_true',
+        help='Run multi-model comparison experiment (Phase 4)'
+    )
+
+    parser.add_argument(
+        '--games-per-model',
+        type=int,
+        default=500,
+        help='Number of games per model in comparison mode (default: 500)'
+    )
+
+    parser.add_argument(
+        '--compare-models',
+        type=str,
+        help='Comma-separated list of specific model IDs to compare'
+    )
+
+    parser.add_argument(
+        '--free-only',
+        action='store_true',
+        help='Only use free models in comparison mode'
+    )
+
+    parser.add_argument(
+        '--paid-only',
+        action='store_true',
+        help='Only use paid models in comparison mode'
+    )
+
+    parser.add_argument(
+        '--list-models',
+        action='store_true',
+        help='List all available models for comparison and exit'
+    )
+
     args = parser.parse_args()
 
     try:
+        # Handle --list-models first (no API key needed)
+        if args.list_models:
+            list_available_models()
+            sys.exit(0)
+
+        # Handle --model-comparison mode (Phase 4)
+        if args.model_comparison:
+            models = None
+            if args.compare_models:
+                models = [m.strip() for m in args.compare_models.split(',')]
+
+            asyncio.run(run_model_comparison(
+                games_per_model=args.games_per_model,
+                num_players=args.players,
+                models=models,
+                output_dir=args.output,
+                enable_db_logging=args.enable_db_logging,
+                concurrency=args.concurrency,
+                free_only=args.free_only,
+                paid_only=args.paid_only,
+            ))
+            sys.exit(0)
+
         if args.batch:
             if args.parallel:
                 # Use parallel runner for large-scale batches

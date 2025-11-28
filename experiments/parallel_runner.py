@@ -29,6 +29,10 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from core.game_manager import GameManager
 from evaluation.database_scale import get_scale_db, ScaleDatabaseManager
+from config.model_comparison_config import (
+    ModelConfig, ALL_MODELS, FREE_MODELS, PAID_MODELS,
+    CURRENT_RUN_MODELS, get_model_by_id
+)
 
 logger = logging.getLogger(__name__)
 
@@ -153,6 +157,7 @@ class ParallelBatchRunner:
         api_key: str,
         num_players: int = 5,
         model: str = "deepseek/deepseek-v3.2-exp",
+        models: Optional[List[str]] = None,  # Multi-model rotation support
         concurrency: int = 3,
         requests_per_minute: int = 60,
         max_retries: int = 3,
@@ -164,6 +169,9 @@ class ParallelBatchRunner:
         self.api_key = api_key
         self.num_players = num_players
         self.model = model
+        # Multi-model rotation: list of model IDs to rotate through
+        self.models = models if models else [model]
+        self.current_model_index = 0
         self.concurrency = concurrency
         self.max_retries = max_retries
         self.retry_base_delay = retry_base_delay
@@ -361,14 +369,23 @@ class ParallelBatchRunner:
 
         return result
 
-    async def _run_single_game(self, game_id: str) -> Dict[str, Any]:
+    def _get_next_model(self) -> str:
+        """Get the next model in rotation (round-robin)."""
+        model = self.models[self.current_model_index % len(self.models)]
+        self.current_model_index += 1
+        return model
+
+    async def _run_single_game(self, game_id: str, model_override: Optional[str] = None) -> Dict[str, Any]:
         """Execute a single game."""
+        # Use model rotation or specific model
+        game_model = model_override or self._get_next_model()
+
         # Create player configurations
         player_configs = [
             {
                 "id": f"{game_id}-player{i+1}",
                 "name": self.player_names[i % len(self.player_names)],
-                "model": self.model,
+                "model": game_model,
                 "type": "ai"
             }
             for i in range(self.num_players)
@@ -389,6 +406,7 @@ class ParallelBatchRunner:
 
         result['duration_seconds'] = duration
         result['game_id'] = game_id
+        result['model'] = game_model
 
         return result
 
@@ -525,11 +543,14 @@ async def run_parallel_batch(
     num_games: int,
     num_players: int = 5,
     model: str = "deepseek/deepseek-v3.2-exp",
+    models: Optional[List[str]] = None,  # Multi-model rotation
     concurrency: int = 3,
     batch_id: Optional[str] = None,
     batch_tag: Optional[str] = None,
     resume: bool = True,
-    api_key: Optional[str] = None
+    api_key: Optional[str] = None,
+    free_only: bool = False,
+    paid_only: bool = False,
 ) -> BatchProgress:
     """
     Convenience function to run a parallel batch.
@@ -537,12 +558,15 @@ async def run_parallel_batch(
     Args:
         num_games: Number of games to run
         num_players: Players per game (5-10)
-        model: OpenRouter model ID
+        model: OpenRouter model ID (used if models not specified)
+        models: List of model IDs for rotation (overrides model param)
         concurrency: Number of concurrent games
         batch_id: Optional batch identifier
         batch_tag: Optional batch tag
         resume: Whether to resume from previous progress
         api_key: OpenRouter API key (uses env var if not provided)
+        free_only: Only use free models from config
+        paid_only: Only use paid models from config
 
     Returns:
         BatchProgress with results
@@ -554,10 +578,21 @@ async def run_parallel_batch(
     if not api_key:
         raise ValueError("OPENROUTER_API_KEY not set")
 
+    # Determine models to use
+    if free_only:
+        rotation_models = [m.openrouter_id for m in FREE_MODELS]
+    elif paid_only:
+        rotation_models = [m.openrouter_id for m in PAID_MODELS]
+    elif models:
+        rotation_models = models
+    else:
+        rotation_models = [model]
+
     runner = ParallelBatchRunner(
         api_key=api_key,
         num_players=num_players,
         model=model,
+        models=rotation_models,
         concurrency=concurrency,
         enable_db_logging=True
     )
@@ -575,26 +610,61 @@ def main():
     import argparse
 
     parser = argparse.ArgumentParser(
-        description="Parallel batch runner for large-scale evaluations"
+        description="Parallel batch runner for large-scale evaluations",
+        epilog="""
+Model Rotation Examples:
+  # Rotate through specific models
+  python parallel_runner.py --games 100 --models x-ai/grok-4.1-fast:free,deepseek/deepseek-chat
+
+  # Use all free models
+  python parallel_runner.py --games 900 --free-only
+
+  # Use all paid models
+  python parallel_runner.py --games 200 --paid-only
+        """
     )
     parser.add_argument('--games', '-g', type=int, default=100, help='Number of games')
     parser.add_argument('--players', '-p', type=int, default=5, help='Players per game')
-    parser.add_argument('--model', '-m', default='deepseek/deepseek-v3.2-exp', help='Model ID')
+    parser.add_argument('--model', '-m', default='deepseek/deepseek-v3.2-exp', help='Model ID (single model)')
+    parser.add_argument('--models', type=str, help='Comma-separated list of model IDs for rotation')
+    parser.add_argument('--free-only', action='store_true', help='Use all free models (9 models)')
+    parser.add_argument('--paid-only', action='store_true', help='Use all paid models (2 models)')
     parser.add_argument('--concurrency', '-c', type=int, default=3, help='Concurrent games')
     parser.add_argument('--batch-id', type=str, help='Batch identifier')
     parser.add_argument('--batch-tag', type=str, help='Batch tag')
     parser.add_argument('--no-resume', action='store_true', help='Do not resume from previous progress')
+    parser.add_argument('--list-models', action='store_true', help='List available models and exit')
 
     args = parser.parse_args()
+
+    # Handle --list-models
+    if args.list_models:
+        print("\nAvailable Models for Multi-Model Rotation:")
+        print("=" * 60)
+        print("\nFREE TIER (9 models):")
+        for m in FREE_MODELS:
+            print(f"  {m.openrouter_id}")
+        print("\nPAID TIER (2 models):")
+        for m in PAID_MODELS:
+            print(f"  {m.openrouter_id}")
+        return
+
+    # Parse models list if provided
+    models_list = None
+    if args.models:
+        models_list = [m.strip() for m in args.models.split(',')]
 
     progress = asyncio.run(run_parallel_batch(
         num_games=args.games,
         num_players=args.players,
         model=args.model,
+        models=models_list,
         concurrency=args.concurrency,
         batch_id=args.batch_id,
         batch_tag=args.batch_tag,
-        resume=not args.no_resume
+        resume=not args.no_resume,
+        free_only=args.free_only,
+        paid_only=args.paid_only,
     ))
 
     print(f"\n{'='*60}")

@@ -97,6 +97,56 @@ experiments/
 
 ## Recent Updates
 
+### Version 1.4.0 (November 2025) - Multi-Model Comparison Framework
+
+**Phase 4: Multi-Model Comparison for Publication-Ready Research**
+
+Run comprehensive comparison experiments across 11 models (9 FREE + 2 paid) with full statistical analysis:
+
+```bash
+# List all available models
+python run_game.py --list-models
+
+# Run full Phase 4 comparison (5,500 games, ~$55)
+python run_game.py --model-comparison --games-per-model 500
+
+# Quick test with free models only (zero cost)
+python run_game.py --model-comparison --games-per-model 10 --free-only
+
+# Compare specific models
+python run_game.py --model-comparison --games-per-model 50 \
+  --compare-models x-ai/grok-4.1-fast:free,deepseek/deepseek-chat
+```
+
+**New Components**:
+- **Model Comparison Config** (`config/model_comparison_config.py`):
+  - 11 model definitions with 2025 OpenRouter pricing
+  - FREE tier: Grok 4.1 Fast, GLM 4.5 Air, Llama 4 Maverick/Scout, DeepSeek R1, Gemini 2.0, Mistral Small 3.1, Optimus Alpha, Bert-Nebulon Alpha
+  - PAID tier: GPT-5 Nano ($0.05/$0.40 per M), DeepSeek V3 ($0.20/$0.80 per M)
+  - Comparison groups for hypothesis testing (Chinese vs Western, Reasoning vs Standard, etc.)
+
+- **Model Comparator** (`experiments/model_comparator.py`):
+  - Batch comparison runner with progress persistence
+  - Per-model statistics tracking (win rates, costs, tokens)
+  - LaTeX table generation for publications
+  - Automatic report generation
+
+- **Model Comparison Analytics** (`analytics/model_comparison.py`):
+  - Chi-square tests for win rate comparison
+  - Cohen's h effect size calculation
+  - Cramér's V for association strength
+  - Elo rating calculation from pairwise results
+  - Wilson score confidence intervals
+  - Bonferroni/Holm multiple comparison correction
+  - Publication-ready LaTeX and Markdown output
+
+**Cost Estimates**:
+| Tier | Models | Games | Cost |
+|------|--------|-------|------|
+| FREE | 9 | 4,500 | $0 |
+| PAID | 2 | 1,000 | ~$54 |
+| **TOTAL** | **11** | **5,500** | **~$55** |
+
 ### Version 1.3.0 (November 2025) - Performance for Scale
 
 **Phase 3: Performance Optimizations for 5000+ Games**

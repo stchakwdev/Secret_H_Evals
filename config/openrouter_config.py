@@ -14,9 +14,121 @@ class ModelConfig:
     max_tokens: int
     temperature: float = 0.7
 
-# OpenRouter model configurations with current pricing
+# OpenRouter model configurations with current pricing (November 2025)
 OPENROUTER_MODELS = {
-    # Critical decisions - High cost, high capability
+    # ==========================================================================
+    # TIER 1: FREE MODELS (Phase 4 Multi-Model Comparison)
+    # ==========================================================================
+    'grok-4.1-fast': ModelConfig(
+        name='x-ai/grok-4.1-fast:free',
+        tier='free',
+        cost_per_1k_tokens=0.0,  # FREE
+        max_tokens=8192,
+        temperature=0.7
+    ),
+    'glm-4.5-air': ModelConfig(
+        name='z-ai/glm-4.5-air:free',
+        tier='free',
+        cost_per_1k_tokens=0.0,  # FREE
+        max_tokens=8192,
+        temperature=0.7
+    ),
+    'bert-nebulon-alpha': ModelConfig(
+        name='openrouter/bert-nebulon-alpha',
+        tier='free',
+        cost_per_1k_tokens=0.0,  # FREE
+        max_tokens=8192,
+        temperature=0.7
+    ),
+    'llama-4-maverick': ModelConfig(
+        name='meta-llama/llama-4-maverick:free',
+        tier='free',
+        cost_per_1k_tokens=0.0,  # FREE
+        max_tokens=8192,
+        temperature=0.7
+    ),
+    'llama-4-scout': ModelConfig(
+        name='meta-llama/llama-4-scout:free',
+        tier='free',
+        cost_per_1k_tokens=0.0,  # FREE
+        max_tokens=8192,
+        temperature=0.7
+    ),
+    'deepseek-r1-free': ModelConfig(
+        name='deepseek/deepseek-r1:free',
+        tier='free',
+        cost_per_1k_tokens=0.0,  # FREE
+        max_tokens=8192,
+        temperature=0.7
+    ),
+    'gemini-2.0-flash-exp': ModelConfig(
+        name='google/gemini-2.0-flash-exp:free',
+        tier='free',
+        cost_per_1k_tokens=0.0,  # FREE
+        max_tokens=8192,
+        temperature=0.7
+    ),
+    'mistral-small-3.1': ModelConfig(
+        name='mistralai/mistral-small-3.1-24b-instruct:free',
+        tier='free',
+        cost_per_1k_tokens=0.0,  # FREE
+        max_tokens=8192,
+        temperature=0.7
+    ),
+    'optimus-alpha': ModelConfig(
+        name='openrouter/optimus-alpha',
+        tier='free',
+        cost_per_1k_tokens=0.0,  # FREE
+        max_tokens=8192,
+        temperature=0.7
+    ),
+
+    # ==========================================================================
+    # TIER 2: BUDGET MODELS (Low cost, high volume)
+    # ==========================================================================
+    'gpt-5-nano': ModelConfig(
+        name='openai/gpt-5-nano',
+        tier='budget',
+        cost_per_1k_tokens=0.000225,  # avg ($0.05 input + $0.40 output) / 2 / 1000
+        max_tokens=8192,
+        temperature=0.7
+    ),
+    'deepseek-v3': ModelConfig(
+        name='deepseek/deepseek-chat',
+        tier='budget',
+        cost_per_1k_tokens=0.0005,  # avg ($0.20 input + $0.80 output) / 2 / 1000
+        max_tokens=8192,
+        temperature=0.7
+    ),
+    'gemini-2.5-flash-lite': ModelConfig(
+        name='google/gemini-2.5-flash-lite',
+        tier='budget',
+        cost_per_1k_tokens=0.00025,  # avg ($0.10 input + $0.40 output) / 2 / 1000
+        max_tokens=8192,
+        temperature=0.7
+    ),
+
+    # ==========================================================================
+    # TIER 3: PREMIUM MODELS (Calibration baseline - reserved for future)
+    # ==========================================================================
+    'claude-4.5-sonnet': ModelConfig(
+        name='anthropic/claude-sonnet-4.5',
+        tier='premium',
+        cost_per_1k_tokens=0.009,  # avg ($3.00 input + $15.00 output) / 2 / 1000
+        max_tokens=8192,
+        temperature=0.5
+    ),
+    'deepseek-r1-paid': ModelConfig(
+        name='deepseek/deepseek-reasoner',
+        tier='premium',
+        cost_per_1k_tokens=0.00235,  # avg ($0.20 input + $4.50 output) / 2 / 1000
+        max_tokens=8192,
+        temperature=0.5
+    ),
+
+    # ==========================================================================
+    # LEGACY MODELS (kept for backwards compatibility)
+    # ==========================================================================
     'claude-3-opus': ModelConfig(
         name='anthropic/claude-3-opus',
         tier='critical',
@@ -26,13 +138,11 @@ OPENROUTER_MODELS = {
     ),
     'gpt-4-turbo': ModelConfig(
         name='openai/gpt-4-turbo',
-        tier='critical', 
+        tier='critical',
         cost_per_1k_tokens=0.010,  # $10/1M input tokens
         max_tokens=4096,
         temperature=0.3
     ),
-    
-    # Strategic decisions - Medium cost, good capability
     'claude-3-sonnet': ModelConfig(
         name='anthropic/claude-3-sonnet',
         tier='strategic',
@@ -47,8 +157,6 @@ OPENROUTER_MODELS = {
         max_tokens=4096,
         temperature=0.5
     ),
-    
-    # Free/Low-cost models - Perfect for testing (prioritized first)
     'deepseek-chat': ModelConfig(
         name='deepseek/deepseek-v3.2-exp',
         tier='routine',
@@ -56,8 +164,6 @@ OPENROUTER_MODELS = {
         max_tokens=8192,
         temperature=0.7
     ),
-    
-    # Routine decisions - Low cost, adequate capability
     'mixtral-8x7b': ModelConfig(
         name='mistralai/mixtral-8x7b-instruct',
         tier='routine',
@@ -73,6 +179,26 @@ OPENROUTER_MODELS = {
         temperature=0.7
     )
 }
+
+# Phase 4 model IDs for easy access
+PHASE4_FREE_MODELS = [
+    'x-ai/grok-4.1-fast:free',
+    'z-ai/glm-4.5-air:free',
+    'openrouter/bert-nebulon-alpha',
+    'meta-llama/llama-4-maverick:free',
+    'meta-llama/llama-4-scout:free',
+    'deepseek/deepseek-r1:free',
+    'google/gemini-2.0-flash-exp:free',
+    'mistralai/mistral-small-3.1-24b-instruct:free',
+    'openrouter/optimus-alpha',
+]
+
+PHASE4_PAID_MODELS = [
+    'openai/gpt-5-nano',
+    'deepseek/deepseek-chat',
+]
+
+PHASE4_ALL_MODELS = PHASE4_FREE_MODELS + PHASE4_PAID_MODELS
 
 # Decision complexity mapping
 DECISION_TIERS = {

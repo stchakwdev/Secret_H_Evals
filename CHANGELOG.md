@@ -4,6 +4,92 @@ All notable changes to the Secret Hitler LLM Evaluation Framework will be docume
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.4.0] - 2025-11-28 - Multi-Model Comparison Framework
+
+### Added
+
+**Phase 4: Multi-Model Comparison for Publication-Ready Research**
+
+- **Model Comparison Config** (`config/model_comparison_config.py`):
+  - `ModelConfig` dataclass with 2025 OpenRouter pricing
+  - `ModelTier` enum (FREE, BUDGET, PREMIUM)
+  - `ModelProvider` enum (xAI, Meta, Google, DeepSeek, OpenAI, etc.)
+  - `ModelArchitecture` enum (MOE, DENSE)
+  - `BatchConfig` for comparison batch configuration
+  - `ComparisonGroup` for hypothesis testing groups
+  - 11 model definitions:
+    - FREE tier (9): Grok 4.1 Fast, GLM 4.5 Air, Bert-Nebulon Alpha, Llama 4 Maverick, Llama 4 Scout, DeepSeek R1, Gemini 2.0 Flash Exp, Mistral Small 3.1, Optimus Alpha
+    - PAID tier (2): GPT-5 Nano, DeepSeek V3
+  - Predefined comparison groups: Chinese vs Western, Reasoning vs Standard, Free vs Paid, MoE vs Dense, Cloaked models
+  - Cost estimation functions: `estimate_game_cost()`, `estimate_batch_cost()`
+  - `print_cost_summary()` for batch cost breakdown
+
+- **Model Comparator** (`experiments/model_comparator.py`):
+  - `ModelComparator` class for orchestrating multi-model experiments
+  - `ModelResult` dataclass for per-model statistics tracking
+  - `ComparisonProgress` dataclass for batch progress management
+  - `ComparisonStatus` enum (PENDING, RUNNING, COMPLETED, FAILED, CANCELLED)
+  - `run_comparison()` async method for full batch execution
+  - Progress persistence to JSON for resumable experiments
+  - `generate_latex_table()` for publication-ready output
+  - `_calculate_rankings()` for model ranking by win rates
+  - `_analyze_comparison_groups()` for hypothesis group analysis
+  - `print_summary()` for console output
+
+- **Model Comparison Analytics** (`analytics/model_comparison.py`):
+  - `ModelStats` dataclass for per-model statistics
+  - `ComparisonResult` dataclass with effect sizes and confidence intervals
+  - `WinRateCI` dataclass using Wilson score intervals
+  - Statistical functions:
+    - `compare_win_rates()`: Chi-square test with effect sizes
+    - `chi_square_win_rates()`: Raw chi-square calculation
+    - `cohens_h()`: Effect size for proportions
+    - `cramers_v()`: Association strength
+    - `odds_ratio()`: Odds ratio with confidence interval
+    - `calculate_wilson_ci()`: Wilson score confidence intervals
+  - Multiple comparison correction:
+    - `bonferroni_correction()`
+    - `holm_bonferroni_correction()`
+  - `calculate_elo_ratings()`: Elo rating from pairwise results
+  - Output generation:
+    - `generate_latex_comparison_table()`
+    - `generate_pairwise_significance_table()`
+    - `generate_markdown_report()`
+
+- **CLI Enhancements** (`run_game.py`):
+  - `--model-comparison` flag for multi-model experiments
+  - `--games-per-model` for games per model (default: 500)
+  - `--compare-models` for specific model selection (comma-separated)
+  - `--free-only` for free models only (9 models, $0)
+  - `--paid-only` for paid models only (2 models)
+  - `--list-models` to display all available models with pricing
+
+- **Parallel Runner Model Rotation** (`experiments/parallel_runner.py`):
+  - `models` parameter for multi-model rotation
+  - `_get_next_model()` for round-robin model selection
+  - `--models` CLI argument for comma-separated model list
+  - `--free-only` and `--paid-only` CLI flags
+  - `--list-models` to show available models
+
+### Changed
+- `config/openrouter_config.py`: Added Phase 4 model definitions with 2025 pricing
+  - Added FREE tier models (9 models)
+  - Added BUDGET tier models (2 models)
+  - Added PREMIUM tier models (reserved: Claude 4.5 Sonnet, DeepSeek R1 paid)
+  - Added `PHASE4_FREE_MODELS`, `PHASE4_PAID_MODELS`, `PHASE4_ALL_MODELS` lists
+
+### Cost Summary
+- 11 models × 500 games = 5,500 total games
+- FREE tier: 9 models × 500 games = 4,500 games @ $0
+- PAID tier: 2 models × 500 games = 1,000 games @ ~$54
+- Total estimated cost: ~$55 (budget remaining: ~$445 for future runs)
+
+### Verified
+- All Phase 4 components import successfully
+- `--list-models` displays all 11 models with pricing
+- Model comparison config correctly calculates costs
+- Statistical comparison functions produce valid results
+
 ## [1.3.0] - 2025-11-27 - Performance for Scale
 
 ### Added
@@ -242,6 +328,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Gemini series
 - Llama 3 series
 
+[1.4.0]: https://github.com/stchakwdev/Secret_H_Evals/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/stchakwdev/Secret_H_Evals/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/stchakwdev/Secret_H_Evals/compare/v1.1.1...v1.2.0
 [1.1.1]: https://github.com/stchakwdev/Secret_H_Evals/compare/v1.1.0...v1.1.1
