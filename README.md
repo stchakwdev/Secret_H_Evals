@@ -97,6 +97,27 @@ experiments/
 
 ## Recent Updates
 
+### Version 1.5.0 (November 2025) - Full Analytics Integration
+
+**Phase 5: Complete Inspect AI Analytics Integration**
+
+Enhanced the Inspect AI adapter with full integration of all analytics modules:
+
+- **Coalition Detection**: Louvain community detection for identifying player alliances
+- **Model Comparison**: Pairwise chi-square tests with Elo ratings and multiple comparison correction
+- **Temporal Analysis**: Game phase segmentation (early/mid/late) with turning point detection
+- **Belief Calibration**: Brier score, ECE, MCE, log loss, and overconfidence metrics
+- **Hypothesis Testing**: Role-based and decision-type tests with effect sizes (Cohen's d/h, Cramér's V)
+- **Batch Analysis**: Cross-game statistical analysis with Bonferroni/Holm corrections
+
+```bash
+# Export with full analytics
+python scripts/export_to_inspect.py --all
+
+# Run batch analysis
+python scripts/analyze_with_inspect.py --batch
+```
+
 ### Version 1.4.0 (November 2025) - Multi-Model Comparison Framework
 
 **Phase 4: Multi-Model Comparison Framework**
