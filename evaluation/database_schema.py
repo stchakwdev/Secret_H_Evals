@@ -98,6 +98,27 @@ class DatabaseManager:
                 )
             """)
 
+            # Prompts table - stores complete prompts for reproducibility
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS prompts (
+                    prompt_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    game_id TEXT NOT NULL,
+                    player_id TEXT NOT NULL,
+                    turn_number INTEGER,
+                    decision_type TEXT NOT NULL,
+                    prompt_text TEXT NOT NULL,
+                    response_text TEXT,
+                    model TEXT NOT NULL,
+                    temperature REAL,
+                    max_tokens INTEGER,
+                    prompt_hash TEXT,
+                    prompt_tokens INTEGER,
+                    completion_tokens INTEGER,
+                    timestamp TEXT NOT NULL,
+                    FOREIGN KEY (game_id) REFERENCES games(game_id)
+                )
+            """)
+
             # Create indices for better query performance
             cursor.execute("""
                 CREATE INDEX IF NOT EXISTS idx_turns_game_id
@@ -122,6 +143,54 @@ class DatabaseManager:
             cursor.execute("""
                 CREATE INDEX IF NOT EXISTS idx_api_model
                 ON api_requests(model)
+            """)
+
+            # Additional indices for large-scale queries (5000+ games)
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_games_timestamp
+                ON games(timestamp)
+            """)
+
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_games_winner
+                ON games(winner)
+            """)
+
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_games_winning_team
+                ON games(winning_team)
+            """)
+
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_decisions_decision_type
+                ON player_decisions(decision_type)
+            """)
+
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_decisions_timestamp
+                ON player_decisions(timestamp)
+            """)
+
+            # Composite indices for common query patterns
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_decisions_game_turn
+                ON player_decisions(game_id, turn_number)
+            """)
+
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_api_game_model
+                ON api_requests(game_id, model)
+            """)
+
+            # Prompts table indices
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_prompts_game_id
+                ON prompts(game_id)
+            """)
+
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_prompts_hash
+                ON prompts(prompt_hash)
             """)
 
             conn.commit()
@@ -253,6 +322,125 @@ class DatabaseManager:
         except Exception as e:
             logger.error(f"Failed to insert API request: {e}")
             return False
+
+    def insert_prompt(self, prompt_data: Dict[str, Any]) -> bool:
+        """
+        Insert a prompt/response pair for reproducibility.
+
+        Args:
+            prompt_data: Dictionary containing:
+                - game_id: Game identifier
+                - player_id: Player identifier
+                - turn_number: Turn number
+                - decision_type: Type of decision
+                - prompt_text: Complete prompt sent to LLM
+                - response_text: Complete response from LLM
+                - model: Model used
+                - temperature: Temperature setting
+                - max_tokens: Max tokens setting
+                - prompt_hash: Hash of prompt for deduplication
+                - prompt_tokens: Number of prompt tokens
+                - completion_tokens: Number of completion tokens
+
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            import hashlib
+
+            prompt_text = prompt_data.get('prompt_text', '')
+            prompt_hash = prompt_data.get('prompt_hash')
+            if not prompt_hash and prompt_text:
+                prompt_hash = hashlib.sha256(prompt_text.encode()).hexdigest()[:16]
+
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+
+                cursor.execute("""
+                    INSERT INTO prompts (
+                        game_id, player_id, turn_number, decision_type,
+                        prompt_text, response_text, model, temperature,
+                        max_tokens, prompt_hash, prompt_tokens,
+                        completion_tokens, timestamp
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    prompt_data.get('game_id'),
+                    prompt_data.get('player_id'),
+                    prompt_data.get('turn_number'),
+                    prompt_data.get('decision_type'),
+                    prompt_text,
+                    prompt_data.get('response_text'),
+                    prompt_data.get('model'),
+                    prompt_data.get('temperature'),
+                    prompt_data.get('max_tokens'),
+                    prompt_hash,
+                    prompt_data.get('prompt_tokens'),
+                    prompt_data.get('completion_tokens'),
+                    prompt_data.get('timestamp', datetime.now().isoformat())
+                ))
+
+                conn.commit()
+                logger.debug(f"Inserted prompt for {prompt_data.get('decision_type')}")
+                return True
+
+        except Exception as e:
+            logger.error(f"Failed to insert prompt: {e}")
+            return False
+
+    def get_prompts(self, game_id: str) -> List[Dict[str, Any]]:
+        """Get all prompts for a game."""
+        try:
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    SELECT * FROM prompts
+                    WHERE game_id = ?
+                    ORDER BY timestamp
+                """, (game_id,))
+
+                return [dict(row) for row in cursor.fetchall()]
+
+        except Exception as e:
+            logger.error(f"Failed to get prompts: {e}")
+            return []
+
+    def get_prompt_by_hash(self, prompt_hash: str) -> Optional[Dict[str, Any]]:
+        """Get a prompt by its hash (for deduplication/caching)."""
+        try:
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    SELECT * FROM prompts
+                    WHERE prompt_hash = ?
+                    ORDER BY timestamp DESC
+                    LIMIT 1
+                """, (prompt_hash,))
+
+                row = cursor.fetchone()
+                return dict(row) if row else None
+
+        except Exception as e:
+            logger.error(f"Failed to get prompt by hash: {e}")
+            return None
+
+    def enable_wal_mode(self):
+        """Enable Write-Ahead Logging for better concurrent access."""
+        with self._get_connection() as conn:
+            conn.execute("PRAGMA journal_mode=WAL")
+            conn.execute("PRAGMA synchronous=NORMAL")
+            logger.info("WAL mode enabled for database")
+
+    def vacuum_database(self):
+        """Optimize database storage after large deletions."""
+        with self._get_connection() as conn:
+            conn.execute("VACUUM")
+            logger.info("Database vacuumed")
+
+    def analyze_tables(self):
+        """Update query planner statistics for better performance."""
+        with self._get_connection() as conn:
+            conn.execute("ANALYZE")
+            logger.info("Database analyzed")
 
     def get_game(self, game_id: str) -> Optional[Dict[str, Any]]:
         """Retrieve a game by ID."""

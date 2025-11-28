@@ -16,5 +16,12 @@ networkx>=3.0.0
 pandas>=2.0.0
 websockets>=11.0.0
 scipy>=1.10.0
-inspect-ai>=0.3.0
-tqdm>=4.65.0
+
+# Phase 1: Interactive Visualization & Analytics
+dash>=2.14.0
+dash-bootstrap-components>=1.5.0
+plotly>=5.18.0
+kaleido>=0.2.1
+python-louvain>=0.16
+statsmodels>=0.14.0
+aiofiles>=23.2.0

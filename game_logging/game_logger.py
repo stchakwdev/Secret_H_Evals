@@ -520,3 +520,142 @@ class GameLogger:
             "metrics": self.metrics,
             "summary": self.get_game_summary()
         }
+
+    async def log_prompt_response(
+        self,
+        player_id: str,
+        decision_type: str,
+        prompt_text: str,
+        response_text: str,
+        model: str,
+        temperature: Optional[float] = None,
+        max_tokens: Optional[int] = None,
+        prompt_tokens: Optional[int] = None,
+        completion_tokens: Optional[int] = None,
+        turn_number: Optional[int] = None
+    ):
+        """
+        Log a prompt/response pair for reproducibility research.
+
+        Stores the complete prompt and response text in the database
+        to enable exact reproduction of LLM decisions.
+
+        Args:
+            player_id: ID of the player making the decision
+            decision_type: Type of decision (vote, nominate, policy_selection, etc.)
+            prompt_text: Complete prompt sent to the LLM
+            response_text: Complete response from the LLM
+            model: Model identifier used
+            temperature: Temperature setting used
+            max_tokens: Max tokens setting used
+            prompt_tokens: Number of tokens in prompt
+            completion_tokens: Number of tokens in completion
+            turn_number: Current turn number
+        """
+        timestamp = datetime.now().isoformat()
+
+        # Log to game log for completeness
+        prompt_log_data = {
+            "event": "prompt_response",
+            "timestamp": timestamp,
+            "player_id": player_id,
+            "decision_type": decision_type,
+            "model": model,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+            "prompt_tokens": prompt_tokens,
+            "completion_tokens": completion_tokens,
+            "prompt_length": len(prompt_text) if prompt_text else 0,
+            "response_length": len(response_text) if response_text else 0
+        }
+        self.game_logger.info(json.dumps(prompt_log_data, indent=2, cls=DateTimeEncoder))
+
+        # Database logging for full reproducibility
+        if self.enable_database_logging and self.db_manager:
+            try:
+                import hashlib
+                prompt_hash = hashlib.sha256(prompt_text.encode()).hexdigest()[:16] if prompt_text else None
+
+                self.db_manager.insert_prompt({
+                    "game_id": self.game_id,
+                    "player_id": player_id,
+                    "turn_number": turn_number or self.metrics["total_actions"],
+                    "decision_type": decision_type,
+                    "prompt_text": prompt_text,
+                    "response_text": response_text,
+                    "model": model,
+                    "temperature": temperature,
+                    "max_tokens": max_tokens,
+                    "prompt_hash": prompt_hash,
+                    "prompt_tokens": prompt_tokens,
+                    "completion_tokens": completion_tokens,
+                    "timestamp": timestamp
+                })
+            except Exception as e:
+                logging.warning(f"Failed to log prompt/response to database: {e}")
+
+    async def log_batch_prompts(self, prompts: List[Dict[str, Any]]):
+        """
+        Log multiple prompt/response pairs efficiently.
+
+        Args:
+            prompts: List of prompt data dictionaries from OpenRouterClient.get_all_prompts()
+        """
+        for prompt_data in prompts:
+            await self.log_prompt_response(
+                player_id=prompt_data.get('player_id', 'unknown'),
+                decision_type=prompt_data.get('decision_type', 'unknown'),
+                prompt_text=prompt_data.get('prompt_text', ''),
+                response_text=prompt_data.get('response_text', ''),
+                model=prompt_data.get('model', 'unknown'),
+                temperature=prompt_data.get('temperature'),
+                max_tokens=prompt_data.get('max_tokens'),
+                prompt_tokens=prompt_data.get('prompt_tokens'),
+                completion_tokens=prompt_data.get('completion_tokens')
+            )
+
+    def get_prompt_stats(self) -> Dict[str, Any]:
+        """
+        Get statistics about logged prompts.
+
+        Returns:
+            Dict with prompt statistics
+        """
+        if not self.enable_database_logging or not self.db_manager:
+            return {"error": "Database logging not enabled"}
+
+        try:
+            prompts = self.db_manager.get_prompts(self.game_id)
+            if not prompts:
+                return {
+                    "total_prompts": 0,
+                    "by_decision_type": {},
+                    "by_player": {},
+                    "avg_prompt_tokens": 0,
+                    "avg_completion_tokens": 0
+                }
+
+            by_type = {}
+            by_player = {}
+            total_prompt_tokens = 0
+            total_completion_tokens = 0
+
+            for p in prompts:
+                dtype = p.get('decision_type', 'unknown')
+                player = p.get('player_id', 'unknown')
+
+                by_type[dtype] = by_type.get(dtype, 0) + 1
+                by_player[player] = by_player.get(player, 0) + 1
+
+                total_prompt_tokens += p.get('prompt_tokens', 0) or 0
+                total_completion_tokens += p.get('completion_tokens', 0) or 0
+
+            return {
+                "total_prompts": len(prompts),
+                "by_decision_type": by_type,
+                "by_player": by_player,
+                "avg_prompt_tokens": total_prompt_tokens / len(prompts) if prompts else 0,
+                "avg_completion_tokens": total_completion_tokens / len(prompts) if prompts else 0
+            }
+        except Exception as e:
+            return {"error": str(e)}

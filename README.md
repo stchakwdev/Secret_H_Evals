@@ -59,7 +59,7 @@ core/
 └── game_manager.py        # Game orchestration and LLM coordination
 
 agents/
-├── openrouter_client.py   # OpenRouter API integration
+├── openrouter_client.py   # OpenRouter API with prompt capture
 └── prompt_templates.py    # Phase-specific prompts for LLM agents
 
 config/
@@ -68,10 +68,21 @@ config/
 game_logging/
 └── game_logger.py         # Multi-level logging with database support
 
+analytics/                 # NEW: Research-grade analysis modules
+├── hypothesis_testing.py  # Statistical tests (chi-square, Fisher, Spearman)
+├── temporal_analysis.py   # Game phase and trajectory analysis
+└── belief_calibration.py  # LLM belief calibration metrics
+
 evaluation/
-├── database_schema.py     # SQLite schema for structured storage
-├── inspect_adapter.py     # Inspect AI format converter
+├── database_schema.py     # SQLite schema with prompts table
+├── inspect_adapter.py     # Enhanced Inspect AI adapter with batch analysis
 └── README.md             # Detailed Inspect integration guide
+
+dashboard/                 # NEW: Interactive visualization
+├── app.py                # Plotly Dash application entry point
+├── layouts.py            # Multi-tab dashboard layouts
+├── callbacks.py          # Interactive callback handlers
+└── data_loader.py        # Database query interface
 
 scripts/
 ├── export_to_inspect.py      # Batch export to Inspect format
@@ -85,6 +96,52 @@ experiments/
 ```
 
 ## Recent Updates
+
+### Version 1.2.0 (November 2025) - Research-Grade Enhancements
+
+**Phase 1: Interactive Visualization Dashboard**
+- Plotly Dash dashboard with real-time analytics (`dashboard/`)
+- Multi-tab interface: Game Overview, Deception Analysis, Decision Patterns, Cost Analytics
+- Interactive filtering by game, player, model, and date range
+- Trust network visualization with D3.js force-directed graphs
+- Export capabilities for publication-ready figures
+- Launch: `python -m dashboard.app --port 8050`
+
+**Phase 2: Research Rigor Components**
+- **Statistical Hypothesis Testing** (`analytics/hypothesis_testing.py`)
+  - Chi-square tests for model comparison
+  - Fisher's exact test for deception by role
+  - Spearman correlation for game dynamics
+  - Kruskal-Wallis test for decision type differences
+  - Effect sizes: Cohen's d, Cramér's V, odds ratios
+  - Wilson score confidence intervals
+  - Multiple comparison correction (Bonferroni, Holm, FDR)
+
+- **Temporal Analysis** (`analytics/temporal_analysis.py`)
+  - Game phase segmentation (early/mid/late)
+  - Turning point detection using signal processing
+  - Trust and deception trajectory calculation
+  - Momentum shift detection
+  - Trend classification (increasing/decreasing/stable/volatile)
+
+- **Belief Calibration** (`analytics/belief_calibration.py`)
+  - Brier score for probability calibration
+  - Expected/Maximum Calibration Error (ECE/MCE)
+  - Overconfidence and underconfidence detection
+  - Reliability diagrams for visualization
+  - KL divergence from uniform distribution
+
+- **Enhanced Inspect AI Integration**
+  - Batch analysis across multiple games
+  - Prompt/response logging for full reproducibility
+  - Prompt hashing for deduplication and caching
+  - Cross-game hypothesis testing
+  - Publication-ready statistical exports
+
+**New Database Features**:
+- `prompts` table for complete prompt/response reproducibility
+- WAL mode for concurrent access at scale
+- Prompt hash indexing for efficient lookups
 
 ### Version 1.1.1 (November 2025)
 

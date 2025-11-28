@@ -66,6 +66,10 @@ class APIRequest:
     player_id: str
     success: bool
     error: Optional[str] = None
+    prompt_text: Optional[str] = None  # Full prompt for reproducibility
+    response_text: Optional[str] = None  # Full response for reproducibility
+    temperature: Optional[float] = None  # Temperature setting used
+    max_tokens: Optional[int] = None  # Max tokens setting used
 
 @dataclass
 class APIResponse:
@@ -257,12 +261,16 @@ class OpenRouterClient:
                                     # Validate response structure
                                     if self._validate_response_structure(data):
                                         return await self._process_success_response(
-                                            data, model_config.name, decision_type, player_id, latency
+                                            data, model_config.name, decision_type, player_id, latency,
+                                            prompt_text=prompt, temperature=temperature,
+                                            max_tokens=model_config.max_tokens
                                         )
                                     else:
                                         # Try to proceed with potentially malformed response
                                         return await self._process_success_response(
-                                            data, model_config.name, decision_type, player_id, latency
+                                            data, model_config.name, decision_type, player_id, latency,
+                                            prompt_text=prompt, temperature=temperature,
+                                            max_tokens=model_config.max_tokens
                                         )
                                 else:
                                     return APIResponse(
@@ -347,7 +355,10 @@ class OpenRouterClient:
         model_name: str,
         decision_type: str,
         player_id: str,
-        latency: float
+        latency: float,
+        prompt_text: Optional[str] = None,
+        temperature: Optional[float] = None,
+        max_tokens: Optional[int] = None
     ) -> APIResponse:
         """Process successful API response with enhanced parsing and fallbacks."""
 
@@ -381,7 +392,7 @@ class OpenRouterClient:
                 error_details.append(f"Usage: {usage_error}")
             error_msg = "; ".join(error_details) if error_details else "Unknown parsing error"
 
-        # Track the request
+        # Track the request with full prompt/response for reproducibility
         request = APIRequest(
             timestamp=datetime.now(),
             model=model_name,
@@ -392,7 +403,11 @@ class OpenRouterClient:
             decision_type=decision_type,
             player_id=player_id,
             success=success,
-            error=error_msg
+            error=error_msg,
+            prompt_text=prompt_text,
+            response_text=content,
+            temperature=temperature,
+            max_tokens=max_tokens
         )
         self.cost_tracker.add_request(request)
 
@@ -660,6 +675,35 @@ class OpenRouterClient:
         if not content or not content.strip():
             return None
 
+        # Strategy 0: Parse REASONING/ACTION/STATEMENT format (from prompts)
+        try:
+            reasoning_match = re.search(r'REASONING:\s*(.+?)(?=\n\s*ACTION:|\n\s*STATEMENT:|\Z)', content, re.DOTALL | re.IGNORECASE)
+            action_match = re.search(r'ACTION:\s*(.+?)(?=\n\s*STATEMENT:|\n\s*REASONING:|\Z)', content, re.DOTALL | re.IGNORECASE)
+            statement_match = re.search(r'STATEMENT:\s*(.+?)(?=\n\s*REASONING:|\n\s*ACTION:|\Z)', content, re.DOTALL | re.IGNORECASE)
+
+            if reasoning_match and action_match:
+                reasoning_text = reasoning_match.group(1).strip()
+                action_text = action_match.group(1).strip()
+                statement_text = statement_match.group(1).strip() if statement_match else None
+
+                # Use action text directly as the action value
+                action_value = action_text
+
+                logger.debug(f"Successfully parsed REASONING/ACTION/STATEMENT format")
+                return AIDecisionResponse(
+                    reasoning=AIReasoning(
+                        summary=reasoning_text[:200],  # First 200 chars as summary
+                        full_analysis=reasoning_text if len(reasoning_text) > 200 else None,
+                        confidence=0.7,  # Default confidence
+                        strategy=None
+                    ),
+                    beliefs={},
+                    action=action_value,
+                    public_statement=statement_text
+                )
+        except Exception as e:
+            logger.debug(f"REASONING/ACTION/STATEMENT parsing failed: {e}")
+
         # Strategy 1: Direct JSON parsing
         try:
             data = json.loads(content)
@@ -805,5 +849,60 @@ class OpenRouterClient:
     def export_usage_log(self, filename: str):
         """Export usage log to JSON file."""
         with open(filename, 'w') as f:
-            json.dump([asdict(req) for req in self.cost_tracker.requests], f, 
+            json.dump([asdict(req) for req in self.cost_tracker.requests], f,
                      indent=2, default=str)
+
+    def get_all_prompts(self) -> List[Dict[str, Any]]:
+        """
+        Get all prompt/response pairs for reproducibility analysis.
+
+        Returns:
+            List of dicts with prompt, response, and metadata
+        """
+        return [
+            {
+                'timestamp': req.timestamp.isoformat() if req.timestamp else None,
+                'player_id': req.player_id,
+                'decision_type': req.decision_type,
+                'model': req.model,
+                'prompt_text': req.prompt_text,
+                'response_text': req.response_text,
+                'temperature': req.temperature,
+                'max_tokens': req.max_tokens,
+                'prompt_tokens': req.prompt_tokens,
+                'completion_tokens': req.completion_tokens,
+                'cost': req.cost,
+                'latency': req.latency,
+                'success': req.success,
+                'error': req.error
+            }
+            for req in self.cost_tracker.requests
+            if req.prompt_text is not None
+        ]
+
+    def get_prompts_by_player(self, player_id: str) -> List[Dict[str, Any]]:
+        """Get all prompts for a specific player."""
+        return [
+            p for p in self.get_all_prompts()
+            if p['player_id'] == player_id
+        ]
+
+    def get_prompts_by_decision_type(self, decision_type: str) -> List[Dict[str, Any]]:
+        """Get all prompts for a specific decision type."""
+        return [
+            p for p in self.get_all_prompts()
+            if p['decision_type'] == decision_type
+        ]
+
+    def calculate_prompt_hash(self, prompt_text: str) -> str:
+        """
+        Calculate hash of prompt for deduplication/caching.
+
+        Args:
+            prompt_text: The prompt text to hash
+
+        Returns:
+            SHA256 hash prefix (16 chars)
+        """
+        import hashlib
+        return hashlib.sha256(prompt_text.encode()).hexdigest()[:16]
