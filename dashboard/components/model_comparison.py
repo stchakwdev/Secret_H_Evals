@@ -1,7 +1,7 @@
 """
 Model Comparison Visualization Component.
 
-Creates publication-ready model comparison charts with confidence intervals
+Creates model comparison charts with confidence intervals
 and statistical significance indicators.
 """
 

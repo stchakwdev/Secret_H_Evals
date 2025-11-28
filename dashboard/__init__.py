@@ -1,8 +1,7 @@
 """
 Interactive Dashboard for Secret Hitler LLM Evaluation.
 
-Provides publication-ready visualizations with statistical analysis
-for AI safety research.
+Provides visualizations with statistical analysis.
 """
 
 __version__ = "1.0.0"

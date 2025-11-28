@@ -3,7 +3,7 @@ Model Comparison Analytics
 
 Statistical comparison functions for multi-model evaluation results.
 Includes hypothesis testing, effect sizes, confidence intervals,
-and publication-ready output generation.
+and formatted output generation.
 
 Author: Samuel Chakwera (stchakdev)
 """

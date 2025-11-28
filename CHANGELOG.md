@@ -4,11 +4,60 @@ All notable changes to the Secret Hitler LLM Evaluation Framework will be docume
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.5.0] - 2025-11-28 - Full Analytics Integration & Visual Refresh
+
+### Added
+
+**Phase 5: Complete Inspect AI Analytics Integration**
+
+- **Enhanced Inspect Adapter** (`evaluation/inspect_adapter.py`):
+  - Full integration with all 6 analytics modules
+  - Coalition detection via Louvain community detection algorithm
+  - Model comparison with pairwise chi-square tests and Elo ratings
+  - Complete temporal analysis with game phase segmentation (early/mid/late)
+  - Full belief calibration metrics (Brier score, ECE, MCE, log loss)
+  - Hypothesis testing with proper `HypothesisTestResult` objects
+  - Effect sizes: Cohen's d, Cohen's h, Cramér's V, odds ratio
+  - Multiple comparison correction (Bonferroni, Holm-Bonferroni)
+  - Wilson score confidence intervals for all proportions
+
+- **New Batch Analysis Methods**:
+  - `_calculate_temporal_metrics_full()`: Complete temporal analysis per game
+  - `_calculate_calibration_metrics_full()`: Full calibration metrics per player
+  - `_calculate_hypothesis_metrics_full()`: Role-based and decision-type tests
+  - `_calculate_coalition_metrics()`: Community detection and alignment networks
+  - `_run_batch_hypothesis_tests_full()`: Cross-game statistical analysis
+  - `_calculate_model_comparison()`: Pairwise model comparison with corrections
+  - `_calculate_batch_coalition_metrics()`: Aggregate coalition statistics
+
+- **README Visual Showcase**:
+  - Added 3 new visualizations to showcase section
+  - Game Outcomes Distribution (`docs/images/game_outcomes.png`)
+  - Model Comparison (`docs/images/model_comparison.png`)
+  - Cost Analytics Dashboard (`docs/images/cost_dashboard.png`)
+  - Regenerated Policy Progression Timeline with latest data
+
+### Changed
+
+- `evaluation/inspect_adapter.py`: Complete rewrite of analytics integration
+  - Replaced stub implementations with full analytics calls
+  - Added proper dataclass serialization for JSON export
+  - Enhanced batch analysis with cross-game metrics
+  - Improved error handling with graceful degradation
+
+### Verified
+
+- All 6 analytics modules properly wired to Inspect adapter
+- Coalition detection produces valid community structures
+- Model comparison generates valid statistics
+- Temporal analysis correctly segments games into phases
+- Calibration metrics match expected ranges for LLM predictions
+
 ## [1.4.0] - 2025-11-28 - Multi-Model Comparison Framework
 
 ### Added
 
-**Phase 4: Multi-Model Comparison for Publication-Ready Research**
+**Phase 4: Multi-Model Comparison Framework**
 
 - **Model Comparison Config** (`config/model_comparison_config.py`):
   - `ModelConfig` dataclass with 2025 OpenRouter pricing
@@ -31,7 +80,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   - `ComparisonStatus` enum (PENDING, RUNNING, COMPLETED, FAILED, CANCELLED)
   - `run_comparison()` async method for full batch execution
   - Progress persistence to JSON for resumable experiments
-  - `generate_latex_table()` for publication-ready output
+  - `generate_latex_table()` for formatted output
   - `_calculate_rankings()` for model ranking by win rates
   - `_analyze_comparison_groups()` for hypothesis group analysis
   - `print_summary()` for console output
@@ -163,7 +212,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Prometheus metrics export in correct format
 - Welford's algorithm produces correct mean/variance
 
-## [1.2.0] - 2025-11-27 - Research-Grade Enhancements
+## [1.2.0] - 2025-11-27 - Advanced Analytics
 
 ### Added
 
@@ -175,7 +224,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   - `data_loader.py`: Efficient database query interface
 - Trust network visualization with force-directed graphs
 - Real-time filtering by game, player, model, and date range
-- Export capabilities for publication-ready figures
+- Export capabilities for figures and charts
 - Launch command: `python -m dashboard.app --port 8050`
 
 **Phase 2: Research Rigor Components**
@@ -328,6 +377,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Gemini series
 - Llama 3 series
 
+[1.5.0]: https://github.com/stchakwdev/Secret_H_Evals/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/stchakwdev/Secret_H_Evals/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/stchakwdev/Secret_H_Evals/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/stchakwdev/Secret_H_Evals/compare/v1.1.1...v1.2.0

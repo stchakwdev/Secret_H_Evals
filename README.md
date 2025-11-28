@@ -68,7 +68,7 @@ config/
 game_logging/
 └── game_logger.py         # Multi-level logging with database support
 
-analytics/                 # NEW: Research-grade analysis modules
+analytics/                 # Statistical analysis modules
 ├── hypothesis_testing.py  # Statistical tests (chi-square, Fisher, Spearman)
 ├── temporal_analysis.py   # Game phase and trajectory analysis
 └── belief_calibration.py  # LLM belief calibration metrics
@@ -99,7 +99,7 @@ experiments/
 
 ### Version 1.4.0 (November 2025) - Multi-Model Comparison Framework
 
-**Phase 4: Multi-Model Comparison for Publication-Ready Research**
+**Phase 4: Multi-Model Comparison Framework**
 
 Run comprehensive comparison experiments across 11 models (9 FREE + 2 paid) with full statistical analysis:
 
@@ -138,7 +138,7 @@ python run_game.py --model-comparison --games-per-model 50 \
   - Elo rating calculation from pairwise results
   - Wilson score confidence intervals
   - Bonferroni/Holm multiple comparison correction
-  - Publication-ready LaTeX and Markdown output
+  - LaTeX and Markdown output generation
 
 **Cost Estimates**:
 | Tier | Models | Games | Cost |
@@ -186,14 +186,14 @@ python run_game.py --batch --games 1000 --parallel --concurrency 5
 python run_game.py --batch --games 5000 --parallel -c 10 --rate-limit 120 --resume
 ```
 
-### Version 1.2.0 (November 2025) - Research-Grade Enhancements
+### Version 1.2.0 (November 2025) - Advanced Analytics
 
 **Phase 1: Interactive Visualization Dashboard**
 - Plotly Dash dashboard with real-time analytics (`dashboard/`)
 - Multi-tab interface: Game Overview, Deception Analysis, Decision Patterns, Cost Analytics
 - Interactive filtering by game, player, model, and date range
 - Trust network visualization with D3.js force-directed graphs
-- Export capabilities for publication-ready figures
+- Export capabilities for figures and charts
 - Launch: `python -m dashboard.app --port 8050`
 
 **Phase 2: Research Rigor Components**
@@ -225,7 +225,7 @@ python run_game.py --batch --games 5000 --parallel -c 10 --rate-limit 120 --resu
   - Prompt/response logging for full reproducibility
   - Prompt hashing for deduplication and caching
   - Cross-game hypothesis testing
-  - Publication-ready statistical exports
+  - Statistical exports in standard formats
 
 **New Database Features**:
 - `prompts` table for complete prompt/response reproducibility
@@ -426,6 +426,21 @@ Analyze when and how often LLMs employ deceptive strategies by comparing private
 Comprehensive behavioral analysis showing vote alignment, coalition formation, and multi-agent coordination dynamics.
 
 ![Strategic Patterns](docs/images/strategic_patterns.png)
+
+### Game Outcomes Distribution
+Win rate analysis showing team performance, game completion rates, and victory conditions across all evaluated games.
+
+![Game Outcomes](docs/images/game_outcomes.png)
+
+### Model Comparison
+Side-by-side performance comparison of different LLM models on strategic reasoning, deception effectiveness, and cost efficiency.
+
+![Model Comparison](docs/images/model_comparison.png)
+
+### Cost Analytics Dashboard
+Research cost tracking showing per-game costs, token usage breakdown, and cost-per-decision metrics for budget optimization.
+
+![Cost Dashboard](docs/images/cost_dashboard.png)
 
 ## Experimental Results & Findings
 
