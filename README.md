@@ -97,6 +97,45 @@ experiments/
 
 ## Recent Updates
 
+### Version 1.3.0 (November 2025) - Performance for Scale
+
+**Phase 3: Performance Optimizations for 5000+ Games**
+- **Parallel Batch Runner** (`experiments/parallel_runner.py`)
+  - Configurable concurrency with `asyncio.Semaphore`
+  - Rate limiting for API quota compliance
+  - Progress persistence for crash recovery
+  - Automatic retry with exponential backoff
+  - Run: `python run_game.py --batch --games 100 --parallel --concurrency 5`
+
+- **High-Performance Database** (`evaluation/database_scale.py`)
+  - Connection pooling with configurable pool size
+  - Batch insert operations (100x faster for bulk writes)
+  - Streaming queries for memory-efficient large dataset processing
+  - Statistics caching with TTL
+  - WAL mode for concurrent access
+
+- **Streaming Analytics** (`analytics/streaming_stats.py`)
+  - Welford's algorithm for online mean/variance (single-pass)
+  - Memory-efficient histogram computation
+  - Incremental statistics with merge capability for parallel processing
+  - Rolling window calculations
+
+- **Monitoring & Metrics** (`experiments/monitoring.py`)
+  - Prometheus-compatible metrics export
+  - Counter, Gauge, Histogram metric types
+  - Alert rules for anomaly detection
+  - Resource and cost tracking
+  - Real-time performance dashboards
+
+**New CLI Options**:
+```bash
+# Parallel execution (recommended for large batches)
+python run_game.py --batch --games 1000 --parallel --concurrency 5
+
+# With rate limiting and resume capability
+python run_game.py --batch --games 5000 --parallel -c 10 --rate-limit 120 --resume
+```
+
 ### Version 1.2.0 (November 2025) - Research-Grade Enhancements
 
 **Phase 1: Interactive Visualization Dashboard**

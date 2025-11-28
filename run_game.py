@@ -249,19 +249,79 @@ Author: Samuel Chakwera (stchakdev)
         help='Human-readable batch tag/description'
     )
 
+    parser.add_argument(
+        '--parallel',
+        action='store_true',
+        help='Use parallel execution for batch mode (recommended for large batches)'
+    )
+
+    parser.add_argument(
+        '--concurrency', '-c',
+        type=int,
+        default=3,
+        help='Number of concurrent games in parallel mode (default: 3)'
+    )
+
+    parser.add_argument(
+        '--rate-limit',
+        type=int,
+        default=60,
+        help='API requests per minute limit (default: 60)'
+    )
+
+    parser.add_argument(
+        '--resume',
+        action='store_true',
+        help='Resume from previous batch progress (parallel mode only)'
+    )
+
     args = parser.parse_args()
 
     try:
         if args.batch:
-            asyncio.run(run_batch_evaluation(
-                num_games=args.games,
-                num_players=args.players,
-                model=args.model,
-                output_dir=args.output,
-                enable_db_logging=args.enable_db_logging,
-                batch_id=args.batch_id,
-                batch_tag=args.batch_tag
-            ))
+            if args.parallel:
+                # Use parallel runner for large-scale batches
+                from experiments.parallel_runner import run_parallel_batch
+
+                print(f"\n{'='*60}")
+                print("Parallel Batch Evaluation")
+                print(f"{'='*60}")
+                print(f"Games: {args.games}")
+                print(f"Concurrency: {args.concurrency}")
+                print(f"Rate limit: {args.rate_limit} req/min")
+                print(f"Resume: {args.resume}")
+                print(f"{'='*60}\n")
+
+                progress = asyncio.run(run_parallel_batch(
+                    num_games=args.games,
+                    num_players=args.players,
+                    model=args.model,
+                    concurrency=args.concurrency,
+                    batch_id=args.batch_id,
+                    batch_tag=args.batch_tag,
+                    resume=args.resume
+                ))
+
+                print(f"\n{'='*60}")
+                print("Parallel Batch Complete")
+                print(f"{'='*60}")
+                print(f"Completed: {progress.completed}/{progress.total_games}")
+                print(f"Failed: {progress.failed}")
+                print(f"Liberal wins: {progress.liberal_wins}")
+                print(f"Fascist wins: {progress.fascist_wins}")
+                print(f"Total cost: ${progress.total_cost:.4f}")
+                print(f"{'='*60}\n")
+            else:
+                # Use sequential batch runner
+                asyncio.run(run_batch_evaluation(
+                    num_games=args.games,
+                    num_players=args.players,
+                    model=args.model,
+                    output_dir=args.output,
+                    enable_db_logging=args.enable_db_logging,
+                    batch_id=args.batch_id,
+                    batch_tag=args.batch_tag
+                ))
         else:
             asyncio.run(run_single_game(
                 num_players=args.players,

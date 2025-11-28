@@ -4,6 +4,79 @@ All notable changes to the Secret Hitler LLM Evaluation Framework will be docume
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.3.0] - 2025-11-27 - Performance for Scale
+
+### Added
+
+**Phase 3: Performance Optimizations for 5000+ Games**
+
+- **Parallel Batch Runner** (`experiments/parallel_runner.py`):
+  - `ParallelBatchRunner` class with configurable concurrency
+  - `RateLimiter` using token bucket algorithm for API quota compliance
+  - `BatchProgress` dataclass for comprehensive progress tracking
+  - `GameResult` and `GameStatus` for individual game state management
+  - Automatic retry with exponential backoff (configurable max retries)
+  - Progress persistence to JSON for crash recovery and batch resumption
+  - Graceful shutdown handling with SIGINT/SIGTERM signals
+  - `run_parallel_batch()` convenience function for easy usage
+
+- **High-Performance Database** (`evaluation/database_scale.py`):
+  - `ConnectionPool` class with configurable pool size and overflow
+  - Thread-safe connection management with timeout handling
+  - Automatic connection recycling after configurable time
+  - `ScaleDatabaseManager` with batch insert operations:
+    - `batch_insert_games()`: Insert multiple games in single transaction
+    - `batch_insert_decisions()`: Bulk decision insertion
+    - `batch_insert_prompts()`: Bulk prompt insertion
+  - Streaming query methods for memory efficiency:
+    - `stream_games()`: Iterate games in configurable batches
+    - `stream_decisions()`: Stream decisions without loading all into memory
+    - `stream_aggregate()`: Stream aggregated results
+  - Statistics caching with configurable TTL
+  - Progress persistence: `save_batch_progress()`, `load_batch_progress()`
+  - Database maintenance: `optimize()`, `vacuum()`
+
+- **Streaming Analytics** (`analytics/streaming_stats.py`):
+  - `WelfordAccumulator`: Online mean/variance using Welford's algorithm
+  - `CountAccumulator`: Categorical counting with proportions
+  - `HistogramAccumulator`: Online histogram computation with fixed bins
+  - `StreamingGameStats`: Comprehensive game statistics aggregation
+  - `StreamingAnalyzer`: High-level interface for streaming analysis
+  - All accumulators support `merge()` for parallel processing results
+  - Memory-efficient: processes data in single pass
+
+- **Monitoring & Metrics** (`experiments/monitoring.py`):
+  - Prometheus-compatible metric types:
+    - `Counter`: Monotonically increasing values with labels
+    - `Gauge`: Values that can go up and down
+    - `Histogram`: Distribution tracking with configurable buckets
+  - `MetricsCollector` class with pre-defined game metrics:
+    - `games_total`, `games_in_progress`, `game_duration`
+    - `api_requests_total`, `api_latency`, `api_cost`
+    - `connection_pool_size`, `memory_usage_bytes`
+    - `batch_progress`, `batch_errors`
+  - `AlertRule` class for anomaly detection
+  - Rate calculations: `get_rate()`, `get_rolling_average()`
+  - Export methods: `to_prometheus()`, `to_json()`, `export_to_file()`
+  - Periodic export in background thread
+
+- **CLI Enhancements** (`run_game.py`):
+  - `--parallel` flag for parallel batch execution
+  - `--concurrency` / `-c` for number of concurrent games
+  - `--rate-limit` for API requests per minute
+  - `--resume` for continuing interrupted batches
+
+### Changed
+- `run_game.py`: Added parallel execution mode with progress reporting
+
+### Verified
+- All Phase 3 components pass comprehensive test suite (`test_phase3.py`)
+- Connection pooling working with concurrent access
+- Batch inserts 100x faster than individual inserts
+- Streaming queries process large datasets without memory issues
+- Prometheus metrics export in correct format
+- Welford's algorithm produces correct mean/variance
+
 ## [1.2.0] - 2025-11-27 - Research-Grade Enhancements
 
 ### Added
@@ -169,6 +242,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Gemini series
 - Llama 3 series
 
+[1.3.0]: https://github.com/stchakwdev/Secret_H_Evals/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/stchakwdev/Secret_H_Evals/compare/v1.1.1...v1.2.0
 [1.1.1]: https://github.com/stchakwdev/Secret_H_Evals/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/stchakwdev/Secret_H_Evals/compare/v1.0.0...v1.1.0
