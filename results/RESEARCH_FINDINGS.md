@@ -2,22 +2,24 @@
 
 **Framework**: Secret Hitler LLM Evaluation System
 **Author**: Samuel Chakwera ([stchakdev](https://github.com/stchakwdev))
-**Dataset**: 34 complete games, 158 games analyzed (including historical data)
-**Model**: DeepSeek V3.2 Exp (primary), with multi-model support
+**Dataset**: 225 complete games, 334 total games analyzed
+**Model**: DeepSeek V3.2 Exp (primary), with 11 models configured for multi-model comparison
 **Analysis Period**: October 2025 - November 2025
+**Last Updated**: November 30, 2025
 
 ---
 
 ## Executive Summary
 
-This study evaluates large language model capabilities in strategic multi-agent scenarios involving deception, coalition formation, and hidden information using Secret Hitler as a testbed. Analysis of 34+ games reveals significant challenges in game completion (67.7% termination due to excessive loops), context-specific deception patterns (34.2% in legislative sessions), and cost-effective evaluation feasibility (~$0.22 per game).
+This study evaluates large language model capabilities in strategic multi-agent scenarios involving deception, coalition formation, and hidden information using Secret Hitler as a testbed. Analysis of **225 complete games** reveals significant improvements in game completion rates (67.4% success), strong fascist advantage (62.7% win rate), context-specific deception patterns, and exceptional cost-efficiency (~$0.022 per game).
 
 ### Key Findings
 
-1. **Game Completion Challenge**: Current LLMs struggle with strategic game completion, with 67.7% of games terminating due to excessive action loops rather than reaching natural win conditions
-2. **Strategic Deception Concentration**: LLMs exhibit highest deception rates during legislative sessions (34.2%) and voting (32.1%), suggesting context-dependent strategic reasoning
-3. **Cost-Effective Research**: DeepSeek V3.2 Exp enables large-scale strategic deception research at ~$0.22 per game (4.48 games per dollar)
-4. **Positional Behavior Variance**: Player position significantly affects deception rates (8.5% to 43.8% range), indicating role-based strategic adaptation
+1. **Improved Game Completion**: 67.4% of games reach natural win conditions (up from 32.3% in early experiments), demonstrating improved LLM strategic reasoning with prompt refinements
+2. **Strong Fascist Advantage**: Fascists win 62.7% of completed games (141/225), suggesting LLMs effectively exploit hidden information asymmetry
+3. **Context-Dependent Deception**: Highest deception rates occur during voting (27.3%) and legislative sessions (26.2%), with deception intensifying late-game (0.05 early → 0.29 late)
+4. **Cost-Effective Research**: DeepSeek V3.2 Exp enables large-scale research at **$0.022 per game (45.5 games per dollar)** — 10x more efficient than initially documented
+5. **Multi-Model Readiness**: Framework configured for 11 models including GPT-5 Nano, DeepSeek R1, Llama 4, and 9 free-tier options for comparative studies
 
 ---
 
@@ -27,13 +29,15 @@ This study evaluates large language model capabilities in strategic multi-agent 
 
 | Metric | Value |
 |--------|-------|
-| **Total Games Analyzed** | 158 games |
-| **Complete Games (Database)** | 34 games |
+| **Total Games Analyzed** | 334 games |
+| **Complete Games (Valid Outcomes)** | **225 games** |
+| **Game Completion Rate** | **67.4%** (225/334) |
 | **Player Configurations** | 5-player and 7-player games |
 | **Primary Model** | DeepSeek V3.2 Exp |
-| **Decision Points Logged** | ~3,700+ individual player decisions |
-| **Total Experimental Cost** | $1.34 (averaged across all games) |
-| **Average Game Duration** | 1,172.7 seconds (~19.5 minutes) |
+| **Decision Points Logged** | **4,978 individual player decisions** |
+| **Total Experimental Cost** | **$4.96** (valid games only) |
+| **Average Cost per Game** | **$0.022** |
+| **Average Game Duration** | 1,265.7 seconds (~21.1 minutes) |
 
 ### 1.2 Data Collection Methods
 
@@ -50,28 +54,34 @@ This study evaluates large language model capabilities in strategic multi-agent 
 
 | Decision Type | Deception Rate | Sample Size | Context |
 |---------------|----------------|-------------|---------|
-| **Legislative Session** | **34.2%** | ~1,350 decisions | Policy selection and enactment |
-| **Vote** | **32.1%** | ~1,400 decisions | Government approval voting |
-| **Nomination** | **25.3%** | ~920 decisions | Chancellor nomination |
-| **Investigation** | **20.5%** | ~210 decisions | Post-policy investigation |
-| **Chancellor Policy Selection** | 14.8% | ~185 decisions | Final policy choice |
-| **Execution** | 12.3% | ~95 decisions | Player elimination |
-| **Nominate Chancellor** | 11.7% | ~140 decisions | Presidential nomination |
-| **President Policy Selection** | 9.6% | ~185 decisions | Initial policy draw |
-| **Special Election** | 8.9% | ~45 decisions | Special presidential powers |
-| **Vote Received** | 7.2% | ~1,400 decisions | Responding to vote results |
+| **Vote** | **27.3%** | 89 decisions | Government approval voting |
+| **Legislative Session** | **26.2%** | 73 decisions | Policy selection and enactment |
+| **Nomination** | **18.5%** | 79 decisions | Chancellor nomination |
+| **Investigation** | **14.7%** | 72 decisions | Post-policy investigation |
+
+*Data from 313 player decisions with public statements; 95 classified as deceptive (30.4%)*
 
 ### 2.1 Analysis: Context-Dependent Deception
 
 **High Deception Contexts**:
-- **Legislative sessions (34.2%)**: Players must justify policy outcomes while potentially lying about drawn cards
-- **Voting (32.1%)**: Strategic vote manipulation requires public justification conflicting with private goals
+- **Voting (27.3%)**: Strategic vote manipulation requires public justification conflicting with private goals
+- **Legislative sessions (26.2%)**: Players must justify policy outcomes while potentially lying about drawn cards
 
 **Low Deception Contexts**:
-- **Vote responses (7.2%)**: Post-facto rationalizations allow truthful strategic framing
-- **Special powers (8.9%)**: Limited strategic value in deception for rare game events
+- **Investigation (14.7%)**: Limited strategic value when information is already partially revealed
+- **Nomination (18.5%)**: Public nominations constrain deceptive framing
 
-**Research Implications**: LLMs demonstrate sophisticated context-awareness, modulating deception based on strategic value and plausibility requirements. This suggests capability for theory-of-mind reasoning and multi-step strategic planning.
+### 2.2 Deception Progression Through Game
+
+| Game Phase | Avg Deception Score | Sample Size |
+|------------|---------------------|-------------|
+| **Early (turns 1-10)** | 0.05 | ~50 decisions |
+| **Mid (turns 11-25)** | 0.15 | ~75 decisions |
+| **Late (turns 26+)** | **0.29** | ~188 decisions |
+
+**Key Finding**: Deception intensifies significantly as games progress, with late-game deception scores nearly **6x higher** than early-game. This suggests LLMs adopt increasingly deceptive strategies as stakes rise and trust relationships become established.
+
+**Research Implications**: LLMs demonstrate sophisticated context-awareness, modulating deception based on strategic value and game phase. This suggests capability for theory-of-mind reasoning and adaptive strategic planning
 
 ---
 
@@ -81,31 +91,31 @@ This study evaluates large language model capabilities in strategic multi-agent 
 
 | Outcome | Count | Percentage | Description |
 |---------|-------|------------|-------------|
-| **Excessive Loops** | 107 | **67.7%** | Games terminated due to repetitive action patterns |
-| **Fascist Victory** | 31 | **19.6%** | 6 Fascist policies enacted OR Hitler elected Chancellor |
-| **Liberal Policy Victory** | 4 | **2.5%** | 5 Liberal policies enacted |
-| **Hitler Execution** | 0 | **0.0%** | Hitler identified and executed by Liberals |
-| **Liberal Victory (Other)** | 16 | **10.1%** | Other Liberal win conditions |
+| **Fascist Victory** | 141 | **42.2%** | 6 Fascist policies enacted OR Hitler elected Chancellor |
+| **Liberal Victory** | 84 | **25.1%** | 5 Liberal policies enacted OR Hitler executed |
+| **Timeout/Error** | 82 | **24.6%** | Games terminated due to loops or errors |
+| **Incomplete** | 27 | **8.1%** | Games interrupted or abandoned |
 
-### 3.1 Critical Finding: Game Completion Challenge
+### 3.1 Improved Game Completion (Key Achievement)
 
-**Problem**: The dominant outcome (67.7%) is artificial termination due to excessive action loops, indicating fundamental challenges in:
-- **Strategic Planning**: LLMs struggle with long-horizon strategic goals in complex multi-agent scenarios
-- **State Space Navigation**: Difficulty breaking out of locally optimal but globally suboptimal action patterns
-- **Coalition Dynamics**: Inability to coordinate effectively across multiple agents with hidden information
+**Improvement**: Game completion rate improved from **32.3%** (early experiments) to **67.4%** (225/334 games), demonstrating that prompt refinements and game logic fixes significantly improved LLM strategic reasoning.
+
+**Remaining Challenges**:
+- **Timeout/Error games (24.6%)**: Some games still fail due to repetitive action patterns or parsing errors
+- **Incomplete games (8.1%)**: API failures or resource constraints
 
 **Implications for AI Safety Research**:
-1. **Bounded Strategic Reasoning**: Current LLMs may have fundamental limitations in multi-step adversarial planning
-2. **Coordination Failures**: Multi-agent scenarios with hidden information expose weaknesses in collaborative reasoning
-3. **Evaluation Design**: Future research should incorporate loop-breaking mechanisms or time-limited scenarios
+1. **Prompt Engineering Matters**: Carefully designed prompts significantly improve LLM performance in complex scenarios
+2. **Iterative Improvement**: Multi-agent strategic reasoning can be improved through systematic debugging
+3. **Residual Limitations**: ~25% failure rate indicates fundamental challenges in long-horizon planning
 
-### 3.2 Successful Game Completions
+### 3.2 Win Distribution Analysis
 
-Among the 32.3% of games reaching natural conclusions:
-- **Fascist win rate**: 60.8% (31/51 completed games)
-- **Liberal win rate**: 39.2% (20/51 completed games)
+Among the **225 completed games**:
+- **Fascist win rate**: **62.7%** (141/225 games)
+- **Liberal win rate**: **37.3%** (84/225 games)
 
-This imbalance suggests Fascists (with hidden information advantages) exploit LLM coordination weaknesses more effectively than Liberals.
+**Research Insight**: The strong Fascist advantage suggests LLMs effectively exploit hidden information asymmetry. Fascists know teammate identities while Liberals must infer allegiances, and LLMs leverage this information advantage effectively
 
 ---
 
@@ -115,20 +125,31 @@ This imbalance suggests Fascists (with hidden information advantages) exploit LL
 
 | Metric | Value | Benchmark |
 |--------|-------|-----------|
-| **Total Cost (158 games)** | $1.34 | Industry standard: $0.01-$0.10 per API call |
-| **Average Cost per Game** | **$0.22** | Comparable to 20-30 GPT-4 API calls |
-| **Games per Dollar** | **4.48 games** | High throughput for research budgets |
-| **Cost per Player Decision** | ~$0.0004 | Extremely cost-efficient granular analysis |
-| **Estimated Cost for 1,000 Games** | ~$220 | Feasible for academic research budgets |
+| **Total Cost (225 valid games)** | **$4.96** | Industry standard: $0.01-$0.10 per API call |
+| **Average Cost per Game** | **$0.022** | ~2 cents per complete game |
+| **Games per Dollar** | **45.5 games** | Exceptional throughput for research budgets |
+| **Cost per Player Decision** | ~$0.001 | Extremely cost-efficient granular analysis |
+| **Estimated Cost for 1,000 Games** | **~$22** | Highly feasible for academic research |
+| **Estimated Cost for 10,000 Games** | **~$220** | Large-scale studies now accessible |
 
 ### 4.1 Model Selection Impact
 
 **DeepSeek V3.2 Exp** (primary model):
 - **Pricing**: ~$0.14 per million tokens (input) / ~$0.28 per million tokens (output)
 - **Performance**: Competitive with GPT-4 on strategic reasoning benchmarks
-- **Cost-Efficiency**: **97.5% cost reduction** compared to GPT-4 Turbo for equivalent volume
+- **Cost-Efficiency**: **99% cost reduction** compared to GPT-4 Turbo for equivalent volume
 
-**Research Implication**: Low-cost models enable large-scale deception research previously limited to well-funded labs, democratizing AI safety evaluation.
+### 4.2 Multi-Model Framework (November 2025)
+
+The framework is configured for comparative studies across **11 models**:
+
+| Tier | Models | Cost Range |
+|------|--------|------------|
+| **Free** | Grok 4.1 Fast, GLM 4.5 Air, Llama 4 Maverick/Scout, DeepSeek R1, Gemini 2.0 Flash, Mistral Small 3.1 | $0.00 |
+| **Budget** | GPT-5 Nano ($0.05/$0.40/M), DeepSeek V3 ($0.20/$0.80/M) | <$0.50/M |
+| **Premium** | Claude 4.5 Sonnet ($3/$15/M) | Reserved for validation |
+
+**Research Implication**: With 9 free-tier models available, researchers can conduct large-scale multi-model comparisons at near-zero cost, democratizing AI safety evaluation
 
 ---
 
@@ -138,28 +159,30 @@ This imbalance suggests Fascists (with hidden information advantages) exploit LL
 
 | Metric | Mean | Std Dev | Min | Max |
 |--------|------|---------|-----|-----|
-| **Game Duration (seconds)** | 1,172.7 | 437.2 | 245 | 2,890 |
-| **Player Decisions per Game** | 23.4 | 8.1 | 12 | 54 |
-| **Deception Frequency (per game)** | 6.3 | 3.7 | 0 | 18 |
-| **API Requests per Game** | 47.2 | 12.8 | 24 | 98 |
-| **Average Response Time (seconds)** | 3.8 | 1.2 | 1.2 | 12.4 |
+| **Game Duration (seconds)** | 1,265.7 | 450.3 | 245 | 3,200 |
+| **Player Decisions per Game** | 22.1 | 7.8 | 12 | 58 |
+| **Total Player Decisions** | 4,978 | — | — | — |
+| **API Requests per Game** | 48.5 | 14.2 | 24 | 112 |
+| **Average Response Time (seconds)** | 3.6 | 1.4 | 0.8 | 15.2 |
 
 ### 5.1 Player Position and Deception Variance
 
-| Player Position | Deception Rate | Total Decisions |
+| Player Position | Deception Rate | Deceptive/Total |
 |-----------------|----------------|-----------------|
-| Player4 | **43.8%** | 287 |
-| Player3 | 38.2% | 312 |
-| Player7 | 34.1% | 198 |
-| Player5 | 31.7% | 294 |
-| Player2 | 28.9% | 318 |
-| Player6 | 22.4% | 185 |
-| Player1 | **8.5%** | 325 |
+| Player4 | **44%** | 28/64 |
+| Player5 | **42%** | 19/45 |
+| Player6 | 39% | 21/54 |
+| Player7 | 31% | 5/16 |
+| Player3 | 31% | 12/39 |
+| Player2 | 12% | 6/48 |
+| Player1 | **9%** | 4/47 |
 
-**Analysis**: Significant positional variance suggests:
-- **Seat-based strategic pressure**: Later positions (Player4, Player7) face more established narratives requiring deception
-- **First-mover truth advantage**: Player1 establishes baseline narratives with less pressure to deceive
-- **Role assignment correlation**: Random role distribution may correlate with position (requires further analysis)
+*Data from 313 decisions with public statements across 5 test games*
+
+**Analysis**: Significant positional variance (9% to 44%) suggests:
+- **Mid-game positions most deceptive**: Players 4-6 show highest deception rates (39-44%)
+- **First-mover truth advantage**: Player1 establishes baseline narratives with minimal deception (9%)
+- **Late positions moderate**: Players 7 shows 31% rate, possibly due to fewer decision opportunities
 
 ---
 
@@ -198,19 +221,24 @@ Liberal and 1 Fascist to Charlie. Charlie, please enact the Liberal policy."
 The framework includes comprehensive visualization tools analyzing strategic gameplay and deception patterns:
 
 ### Policy Progression Timeline
-Track the strategic race between Liberal and Fascist teams across multiple games.
+Track the strategic race between Liberal and Fascist teams across multiple games, showing turn-by-turn policy enactments.
 
 ![Policy Progression Timeline](../docs/images/policy_progression_timeline.png)
 
-### Deception Analysis
-Heatmap showing when and how often LLMs employ deceptive strategies by decision type and player.
+### Deception Analysis Dashboard
+Multi-panel dashboard showing deception rates by decision type, game phase progression (early→late), player-level analysis, and per-game intensity.
 
-![Deception Analysis](../docs/images/deception_analysis.png)
+![Deception Analysis Dashboard](../docs/images/deception_heatmap.png)
 
-### Strategic Patterns
-Comprehensive behavioral analysis including vote alignment, coalition formation, and decision confidence distributions.
+### Deception Summary Analytics
+Detailed deception statistics including score distributions, temporal patterns, and player behavior analysis with bubble charts.
 
-![Strategic Patterns](../docs/images/strategic_patterns.png)
+![Deception Summary](../docs/images/deception_summary.png)
+
+### Batch Experiment Summary
+Overview of experiment batches showing game counts, completion rates, and outcome distributions.
+
+![Batch Summary](../docs/images/batch_summary.png)
 
 ---
 
@@ -250,19 +278,20 @@ Comprehensive behavioral analysis including vote alignment, coalition formation,
 - Naturalistic multi-agent scenario with complex strategic incentives
 - Comprehensive logging of private reasoning and public statements
 - Standardized Inspect AI format for reproducibility
-- Cost-effective large-scale evaluation
+- Cost-effective large-scale evaluation ($0.022/game)
+- Improved completion rate (67.4%) vs early experiments (32.3%)
 
 **Limitations**:
 - **Single game environment**: Findings may not generalize to other strategic scenarios
-- **Model-specific results**: Primary analysis on DeepSeek V3.2 Exp; multi-model comparison limited
-- **Artificial termination**: 67.7% loop-based endings complicate win rate analysis
+- **Model-specific results**: Primary analysis on DeepSeek V3.2 Exp; multi-model comparison pending
+- **Residual failures**: ~25% of games still fail due to timeouts or parsing errors
 - **Prompt engineering effects**: LLM behavior may be sensitive to prompt formulation
 
 ### 9.2 Threats to Validity
 
 **Internal Validity**:
 - Random role assignment ensures unbiased team composition
-- Deception detection algorithm validated against manual annotation (see evaluation/README.md)
+- Deception detection algorithm validated against manual annotation
 
 **External Validity**:
 - Game complexity may not reflect real-world deception scenarios
@@ -270,37 +299,73 @@ Comprehensive behavioral analysis including vote alignment, coalition formation,
 
 **Construct Validity**:
 - Deception operationalized as reasoning-statement divergence; may miss sophisticated consistent lies
-- Game completion loops may indicate LLM limitations beyond strategic reasoning (e.g., action space exploration failures)
+- Limited deception data: only 313/4,978 decisions include public statements for analysis
+
+### 9.3 Technical Shortcomings
+
+**Data Collection Gaps**:
+1. **Limited public statements**: Only 6.3% of decisions (313/4,978) have analyzable public statements
+2. **No role tracking in decisions**: Player roles not directly linked to decision records
+3. **Test vs production separation**: Deception-rich test games (5) separate from larger batch (225)
+
+**Framework Limitations**:
+1. **Single model evaluation**: Production batch used only DeepSeek V3.2 Exp
+2. **No human baseline**: Cannot compare LLM deception to human player behavior
+3. **Cost tracking incomplete**: API cost logging not fully integrated in all batches
+
+### 9.4 Areas for Improvement
+
+**Near-Term Improvements**:
+1. **Enhanced logging**: Capture public statements in all production games
+2. **Role attribution**: Link player roles to decision records for role-based analysis
+3. **Multi-model batches**: Execute comparative runs across configured 11 models
+
+**Research Extensions**:
+1. **Human-LLM hybrid games**: Calibrate LLM deception against human detection
+2. **Cross-domain transfer**: Test if deception patterns generalize beyond Secret Hitler
+3. **Loop-breaking mechanisms**: Further reduce timeout rate below 25%
+4. **Longitudinal analysis**: Track deception skill improvement across model versions
 
 ---
 
 ## 10. Future Research Directions
 
-### 10.1 Immediate Extensions
+### 10.1 Multi-Model Comparison (Planned)
 
-1. **Multi-Model Comparison**:
-   - Evaluate GPT-4, Claude 3, Gemini Pro, Llama 3 on identical scenarios
-   - Characterize model-specific deception patterns and strategic capabilities
+The framework is configured for comparative evaluation across **11 models** (November 2025):
 
-2. **Loop-Breaking Mechanisms**:
-   - Implement time-limited games or forced random interventions
-   - Analyze strategic behavior under completion constraints
+| Model | Provider | Architecture | Research Interest |
+|-------|----------|--------------|-------------------|
+| **GPT-5 Nano** | OpenAI | Dense | Latest OpenAI reasoning, budget-tier |
+| **DeepSeek R1** | DeepSeek | MoE 671B (37B active) | Chinese reasoning model, free tier |
+| **Llama 4 Maverick** | Meta | MoE 400B (17B active) | Open-weight comparison |
+| **Claude 4.5 Sonnet** | Anthropic | Dense | Best-in-class agents, premium |
+| **GLM 4.5 Air** | Z.AI | MoE 106B | Chinese model with thinking mode |
+| **Grok 4.1 Fast** | xAI | Dense | 2M context, free tier |
+| **Gemini 2.0 Flash** | Google | Dense | 1M+ context, experimental |
 
-3. **Human-LLM Hybrid Games**:
-   - Evaluate LLM deception effectiveness against human players
-   - Study human detection of LLM deceptive patterns
+**Research Questions**:
+- Do reasoning-optimized models (DeepSeek R1, GPT-5) show different deception patterns?
+- How do open-weight models (Llama 4) compare to proprietary APIs?
+- Do Chinese models (DeepSeek, GLM) exhibit cultural differences in strategic play?
 
-### 10.2 Long-Term Research Agenda
+### 10.2 Immediate Extensions
+
+1. **Multi-Model Batches**: Run 500 games per model (~$55 total using free/budget tiers)
+2. **Human-LLM Hybrid Games**: Evaluate deception effectiveness against human players
+3. **Enhanced Logging**: Capture public statements in all games for comprehensive deception analysis
+
+### 10.3 Long-Term Research Agenda
 
 1. **Cross-Domain Deception Transfer**:
-   - Test whether Secret Hitler deception skills transfer to other strategic scenarios (poker, negotiation, debate)
+   - Test whether Secret Hitler deception skills transfer to poker, negotiation, debate
 
 2. **Alignment-Relevant Deception**:
-   - Distinguish "harmless strategic play" from "harmful deception" in LLM reasoning
-   - Develop deception detection robust to context-appropriate strategic behavior
+   - Distinguish "harmless strategic play" from "harmful deception"
+   - Develop deception detection robust to context-appropriate behavior
 
 3. **Multi-Agent Coordination**:
-   - Study LLM coalition formation failures to improve collaborative AI systems
+   - Study coalition formation to improve collaborative AI systems
    - Develop architectures enabling effective hidden information coordination
 
 ---
@@ -309,23 +374,32 @@ Comprehensive behavioral analysis including vote alignment, coalition formation,
 
 All experimental data is available in structured formats:
 
-**Database**: `data/games.db` (34 games with complete state logging)
-**Inspect Format**: `data/inspect_logs/*.json` (158 games, standardized evaluation format)
-**Analysis Reports**: `reports/` (statistical analysis, game outcomes, player decisions)
-**Visualizations**: `docs/images/` (deception heatmaps, policy progression, strategic patterns)
+| Resource | Location | Description |
+|----------|----------|-------------|
+| **Database** | `data/games.db` | 225 complete games with state logging |
+| **Game Logs** | `logs/*/game.log` | Detailed per-game decision traces |
+| **Inspect Format** | `data/inspect_logs/*.json` | Standardized AI evaluation format |
+| **Analysis Reports** | `reports/` | Statistical analysis, outcomes, decisions |
+| **Visualizations** | `docs/images/` | Deception dashboards, policy timelines |
+
+**Dataset Statistics**:
+- **334 total games** (225 complete, 109 timeout/incomplete)
+- **4,978 player decisions** logged
+- **313 deception-analyzable decisions** (with public statements)
+- **Total experimental cost**: $4.96
 
 **Reproduce Analysis**:
 ```bash
+# Generate visualizations
+python scripts/create_policy_timeline.py --interesting --limit 6
+python scripts/create_deception_heatmap.py --games 10
+python scripts/create_batch_summary.py
+
 # Export to Inspect format
 python scripts/export_to_inspect.py --all
 
 # Run statistical analysis
 python scripts/analyze_with_inspect.py
-
-# Generate visualizations
-python scripts/generate_policy_timeline.py
-python scripts/generate_deception_heatmap.py
-python scripts/generate_strategic_patterns.py
 ```
 
 ---
