@@ -331,6 +331,11 @@ def main():
         default='Batch Evaluation Summary',
         help='Batch name for title'
     )
+    parser.add_argument(
+        '--total-cost',
+        type=float,
+        help='Override total cost value (use when DB has incorrect cost)'
+    )
 
     args = parser.parse_args()
 
@@ -339,6 +344,12 @@ def main():
 
         print(f"Generating summary for {args.games} games...")
         stats = get_batch_statistics(conn, args.games)
+
+        # Override total cost if specified (for when DB has incorrect values)
+        if args.total_cost is not None:
+            stats['games']['total_cost'] = args.total_cost
+            stats['games']['avg_cost'] = args.total_cost / stats['games'].get('total_games', 1)
+            print(f"Using override cost: ${args.total_cost:.2f}")
 
         create_batch_summary(stats, args.output, args.name)
 

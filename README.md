@@ -14,6 +14,11 @@ python run_game.py --players 5 --enable-db-logging
 python run_game.py --batch --games 100 --players 5 --parallel --concurrency 3
 ```
 
+## Batch Evaluation Monitor
+
+![Batch Monitor](docs/images/batch_monitor.png)
+*Terminal UI showing 300-game batch completion with real-time progress tracking*
+
 ## Evaluation Results (300 Games)
 
 ![Batch Summary](docs/images/batch_summary.png)
@@ -24,15 +29,20 @@ python run_game.py --batch --games 100 --players 5 --parallel --concurrency 3
 | Completion Rate | 70% |
 | Fascist Win Rate | 61% |
 | Liberal Win Rate | 39% |
-| Primary Fascist Win | Hitler Chancellor (99%) |
-| Primary Liberal Win | Hitler Killed (85%) |
+| Total Cost | ~$6 |
+| Avg Cost/Game | ~$0.02 |
 
 ### Key Findings
 - **Pipeline validated**: 300 games completed in ~35 hours runtime
 - **Fascist advantage**: 61% win rate exploiting information asymmetry
 - **Hitler Chancellor**: 99% of Fascist wins via this condition (127/128)
 - **Liberal counterplay**: Hitler killed is primary defense (85% of Liberal wins)
-- **Cost efficiency**: ~$0.22 per game with DeepSeek V3.2 Exp
+- **Cost efficiency**: ~$0.02 per game with DeepSeek V3.2 Exp
+
+## Visual Analytics
+
+![Deception Summary](docs/images/deception_summary.png)
+*Deception analysis by decision type and player role*
 
 ## Features
 
@@ -52,17 +62,6 @@ dashboard/      Interactive Plotly visualization
 analytics/      Statistical analysis modules
 scripts/        Export and analysis tools
 ```
-
-## Visual Analytics
-
-![Policy Timeline](docs/images/policy_progression_timeline.png)
-*Policy progression across games showing Liberal vs Fascist race*
-
-![Deception Summary](docs/images/deception_summary.png)
-*Deception analysis by decision type and player role*
-
-![Cost Dashboard](docs/images/cost_dashboard.png)
-*Research cost tracking and token usage breakdown*
 
 ## Documentation
 

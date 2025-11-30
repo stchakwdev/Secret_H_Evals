@@ -247,9 +247,9 @@ def create_deception_summary(df: pd.DataFrame, output_path: str):
                  fontweight='bold', fontsize=12)
     ax4.grid(alpha=0.3)
 
-    # Overall title
+    # Overall title - position higher to avoid subplot overlap
     fig.suptitle('Deception Analytics Dashboard - Secret Hitler LLM Evaluation',
-                fontsize=16, fontweight='bold', y=0.995)
+                fontsize=16, fontweight='bold', y=1.02)
 
     # Save
     output_path = Path(output_path)
