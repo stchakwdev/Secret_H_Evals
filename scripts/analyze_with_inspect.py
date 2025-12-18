@@ -26,22 +26,19 @@ def load_inspect_log(log_path: Path) -> Dict[str, Any]:
         return json.load(f)
 
 
-def analyze_experiment(log_dir: str, output_dir: str = "reports") -> Dict[str, Any]:
+def analyze_experiment(log_dir: str, output_dir: str = "./reports") -> Dict[str, Any]:
     """
     Analyze Secret Hitler games using Inspect logs.
 
     Args:
         log_dir: Directory containing Inspect format JSON logs
-        output_dir: Directory for output reports (relative to project root)
+        output_dir: Directory for output reports
 
     Returns:
         Dictionary containing analysis results
     """
-    # Resolve paths relative to project root (llm-game-engine/)
-    project_root = Path(__file__).parent.parent
-
-    log_dir = Path(log_dir) if Path(log_dir).is_absolute() else project_root / log_dir
-    output_dir = Path(output_dir) if Path(output_dir).is_absolute() else project_root / output_dir
+    log_dir = Path(log_dir)
+    output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # Load all log files

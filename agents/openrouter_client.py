@@ -158,12 +158,13 @@ class CostTracker:
 
 class OpenRouterClient:
     """Async client for OpenRouter API with intelligent model routing."""
-    
-    def __init__(self, api_key: str):
+
+    def __init__(self, api_key: str, game_logger: Optional[Any] = None):
         self.api_key = api_key
         self.session: Optional[aiohttp.ClientSession] = None
         self.cost_tracker = CostTracker()
         self.rate_limiter = asyncio.Semaphore(10)  # Max 10 concurrent requests
+        self.game_logger = game_logger  # Optional logger for database integration
         
     async def __aenter__(self):
         # Create SSL context that allows unverified certificates (for testing)
@@ -410,6 +411,20 @@ class OpenRouterClient:
             max_tokens=max_tokens
         )
         self.cost_tracker.add_request(request)
+
+        # Log to game logger for database if available
+        if self.game_logger:
+            try:
+                await self.game_logger.log_api_request(
+                    player_id=player_id,
+                    model=model_name,
+                    cost=cost,
+                    latency=latency,
+                    tokens=prompt_tokens + completion_tokens,
+                    decision_type=decision_type
+                )
+            except Exception as e:
+                logger.warning(f"Failed to log API request to game logger: {e}")
 
         # Check for cost alerts
         if self.cost_tracker.should_alert():

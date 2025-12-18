@@ -42,7 +42,7 @@ def get_batch_statistics(conn: sqlite3.Connection, game_limit: int = 10) -> Dict
     Returns:
         Dictionary with batch statistics
     """
-    # Game outcomes
+    # Game outcomes - filter to only valid completed games
     games_query = """
         SELECT
             COUNT(*) as total_games,
@@ -55,8 +55,10 @@ def get_batch_statistics(conn: sqlite3.Connection, game_limit: int = 10) -> Dict
             AVG(liberal_policies) as avg_lib_policies,
             AVG(fascist_policies) as avg_fasc_policies
         FROM games
-        WHERE game_id IN (
+        WHERE winner IN ('liberal', 'fascist')
+          AND game_id IN (
             SELECT game_id FROM games
+            WHERE winner IN ('liberal', 'fascist')
             ORDER BY timestamp DESC
             LIMIT ?
         )
@@ -64,7 +66,7 @@ def get_batch_statistics(conn: sqlite3.Connection, game_limit: int = 10) -> Dict
 
     games_df = pd.read_sql_query(games_query, conn, params=(game_limit,))
 
-    # Player decisions
+    # Player decisions - filter for valid games only
     decisions_query = """
         SELECT
             COUNT(*) as total_decisions,
@@ -73,6 +75,7 @@ def get_batch_statistics(conn: sqlite3.Connection, game_limit: int = 10) -> Dict
         FROM player_decisions
         WHERE game_id IN (
             SELECT game_id FROM games
+            WHERE winner IN ('liberal', 'fascist')
             ORDER BY timestamp DESC
             LIMIT ?
         )
@@ -80,7 +83,7 @@ def get_batch_statistics(conn: sqlite3.Connection, game_limit: int = 10) -> Dict
 
     decisions_df = pd.read_sql_query(decisions_query, conn, params=(game_limit,))
 
-    # API stats
+    # API stats - filter for valid games only
     api_query = """
         SELECT
             COUNT(*) as total_requests,
@@ -89,6 +92,7 @@ def get_batch_statistics(conn: sqlite3.Connection, game_limit: int = 10) -> Dict
         FROM api_requests
         WHERE game_id IN (
             SELECT game_id FROM games
+            WHERE winner IN ('liberal', 'fascist')
             ORDER BY timestamp DESC
             LIMIT ?
         )
@@ -152,21 +156,21 @@ def create_batch_summary(stats: Dict, output_path: str, batch_name: str = "Batch
 
     # Total Cost metric
     ax_cost = fig.add_subplot(gs[0, 3])
-    total_cost = stats['games'].get('total_cost', 0)
+    total_cost = stats['games'].get('total_cost') or 0
     draw_metric_card(ax_cost, f'${total_cost:.4f}', 'Total Cost', '#2ca02c')
 
     # === Row 2: Performance Metrics ===
 
     # Average Game Duration
     ax_duration = fig.add_subplot(gs[1, 0])
-    avg_duration = stats['games'].get('avg_duration', 0)
+    avg_duration = stats['games'].get('avg_duration') or 0
     draw_metric_card(ax_duration, f'{avg_duration/60:.1f}m',
                     'Avg Duration', '#ff7f0e')
 
     # Player Decisions bar
     ax_decisions = fig.add_subplot(gs[1, 1])
-    total_decisions = int(stats['decisions'].get('total_decisions', 0))
-    decision_types = int(stats['decisions'].get('decision_types', 0))
+    total_decisions = int(stats['decisions'].get('total_decisions') or 0)
+    decision_types = int(stats['decisions'].get('decision_types') or 0)
 
     ax_decisions.barh([0, 1], [total_decisions, decision_types],
                      color=['#9467bd', '#8c564b'], alpha=0.7)
@@ -181,7 +185,7 @@ def create_batch_summary(stats: Dict, output_path: str, batch_name: str = "Batch
 
     # Deception Rate
     ax_deception = fig.add_subplot(gs[1, 2])
-    deception_rate = stats['decisions'].get('deception_rate', 0) * 100
+    deception_rate = (stats['decisions'].get('deception_rate') or 0) * 100
 
     # Donut chart for deception
     sizes = [deception_rate, 100 - deception_rate]
@@ -195,8 +199,8 @@ def create_batch_summary(stats: Dict, output_path: str, batch_name: str = "Batch
 
     # API Efficiency
     ax_api = fig.add_subplot(gs[1, 3])
-    total_requests = int(stats['api'].get('total_requests', 0))
-    avg_latency = stats['api'].get('avg_latency', 0)
+    total_requests = int(stats['api'].get('total_requests') or 0)
+    avg_latency = stats['api'].get('avg_latency') or 0
 
     ax_api.text(0.5, 0.7, str(total_requests), ha='center', va='center',
                fontsize=24, fontweight='bold', transform=ax_api.transAxes)
@@ -216,8 +220,8 @@ def create_batch_summary(stats: Dict, output_path: str, batch_name: str = "Batch
 
     # Average Policies
     ax_policies = fig.add_subplot(gs[2, 0:2])
-    avg_lib = stats['games'].get('avg_lib_policies', 0)
-    avg_fasc = stats['games'].get('avg_fasc_policies', 0)
+    avg_lib = stats['games'].get('avg_lib_policies') or 0
+    avg_fasc = stats['games'].get('avg_fasc_policies') or 0
 
     x = np.arange(2)
     width = 0.6
@@ -240,8 +244,8 @@ def create_batch_summary(stats: Dict, output_path: str, batch_name: str = "Batch
 
     # Token Usage
     ax_tokens = fig.add_subplot(gs[2, 2:])
-    total_tokens = int(stats['api'].get('total_tokens', 0))
-    avg_cost = stats['games'].get('avg_cost', 0)
+    total_tokens = int(stats['api'].get('total_tokens') or 0)
+    avg_cost = stats['games'].get('avg_cost') or 0
     tokens_per_dollar = total_tokens / total_cost if total_cost > 0 else 0
 
     metrics_text = [

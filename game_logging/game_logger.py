@@ -124,12 +124,27 @@ class GameLogger:
                 "deception_count": 0,
                 "api_requests": 0,
                 "api_cost": 0.0,
+                "model": "unknown",  # Will be set by set_player_model()
                 "trust_beliefs": {},
                 "strategy_evolution": []
             }
         
         return self.player_logs[player_id]
-    
+
+    def set_player_model(self, player_id: str, model: str):
+        """Set the model used by a player."""
+        if player_id in self.metrics["player_metrics"]:
+            self.metrics["player_metrics"][player_id]["model"] = model
+        else:
+            # Initialize if not yet created
+            self._get_player_logger(player_id)
+            self.metrics["player_metrics"][player_id]["model"] = model
+
+    def set_all_players_model(self, model: str):
+        """Set the model for all players (when using same model for all)."""
+        for player_id in self.metrics["player_metrics"]:
+            self.metrics["player_metrics"][player_id]["model"] = model
+
     async def log_game_start(self, initial_state: Dict[str, Any]):
         """Log game initialization."""
         timestamp = datetime.now().isoformat()

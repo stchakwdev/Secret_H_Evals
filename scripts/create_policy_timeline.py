@@ -65,13 +65,14 @@ def extract_policy_events(game_data_json: str) -> List[Dict]:
         return []
 
 
-def get_batch_games(conn: sqlite3.Connection, batch_id: str = None) -> List[Dict]:
+def get_batch_games(conn: sqlite3.Connection, batch_id: str = None, limit: int = 10) -> List[Dict]:
     """
     Get games from database.
 
     Args:
         conn: Database connection
         batch_id: Optional batch ID to filter (uses latest games if None)
+        limit: Maximum number of games to return
 
     Returns:
         List of game dictionaries with metadata and policy progressions
@@ -85,19 +86,23 @@ def get_batch_games(conn: sqlite3.Connection, batch_id: str = None) -> List[Dict
                    game_data_json, timestamp
             FROM games
             WHERE json_extract(game_data_json, '$.batch_id') = ?
-            ORDER BY timestamp DESC
+              AND winner IN ('liberal', 'fascist')
+              AND (liberal_policies > 0 OR fascist_policies > 0)
+            ORDER BY (liberal_policies + fascist_policies) DESC
         """
         cursor.execute(query, (batch_id,))
     else:
-        # Get most recent games
+        # Get games with actual policy data (exclude TIMEOUT/errors)
         query = """
             SELECT game_id, winner, liberal_policies, fascist_policies,
                    game_data_json, timestamp
             FROM games
-            ORDER BY timestamp DESC
-            LIMIT 10
+            WHERE winner IN ('liberal', 'fascist')
+              AND (liberal_policies > 0 OR fascist_policies > 0)
+            ORDER BY (liberal_policies + fascist_policies) DESC
+            LIMIT ?
         """
-        cursor.execute(query)
+        cursor.execute(query, (limit,))
 
     games = []
     for row in cursor.fetchall():
@@ -109,6 +114,96 @@ def get_batch_games(conn: sqlite3.Connection, batch_id: str = None) -> List[Dict
         # If no events from history, reconstruct from final counts
         if not events and (lib_final > 0 or fasc_final > 0):
             # Simple reconstruction: alternate policies (not accurate but better than nothing)
+            total = lib_final + fasc_final
+            events = []
+            lib_count = 0
+            fasc_count = 0
+
+            for i in range(total):
+                if lib_count < lib_final and (fasc_count >= fasc_final or i % 2 == 0):
+                    lib_count += 1
+                    events.append({
+                        'policy': 'liberal',
+                        'liberal_count': lib_count,
+                        'fascist_count': fasc_count,
+                        'round': i + 1
+                    })
+                else:
+                    fasc_count += 1
+                    events.append({
+                        'policy': 'fascist',
+                        'liberal_count': lib_count,
+                        'fascist_count': fasc_count,
+                        'round': i + 1
+                    })
+
+        games.append({
+            'game_id': game_id,
+            'winner': winner,
+            'liberal_final': lib_final,
+            'fascist_final': fasc_final,
+            'events': events,
+            'timestamp': timestamp
+        })
+
+    return games
+
+
+def get_interesting_games(conn: sqlite3.Connection, limit: int = 10) -> List[Dict]:
+    """
+    Select interesting games with variety of outcomes.
+
+    Selects a mix of liberal and fascist wins, prioritizing games with
+    high total policy counts (close, exciting games).
+
+    Args:
+        conn: Database connection
+        limit: Maximum number of games to return
+
+    Returns:
+        List of game dictionaries with metadata and policy progressions
+    """
+    cursor = conn.cursor()
+
+    # Get mix: ~50% liberal wins, ~50% fascist wins, sorted by policy count
+    half_limit = max(1, limit // 2)
+
+    query = """
+        SELECT * FROM (
+            SELECT game_id, winner, liberal_policies, fascist_policies,
+                   game_data_json, timestamp,
+                   (liberal_policies + fascist_policies) AS total_policies
+            FROM games
+            WHERE winner = 'liberal'
+              AND (liberal_policies + fascist_policies) >= 5
+            ORDER BY total_policies DESC
+            LIMIT ?
+        )
+        UNION ALL
+        SELECT * FROM (
+            SELECT game_id, winner, liberal_policies, fascist_policies,
+                   game_data_json, timestamp,
+                   (liberal_policies + fascist_policies) AS total_policies
+            FROM games
+            WHERE winner = 'fascist'
+              AND (liberal_policies + fascist_policies) >= 5
+            ORDER BY total_policies DESC
+            LIMIT ?
+        )
+        ORDER BY total_policies DESC
+    """
+    cursor.execute(query, (half_limit, limit - half_limit))
+
+    games = []
+    for row in cursor.fetchall():
+        # Unpack 7 columns: ..., total_policies (ignored)
+        game_id, winner, lib_final, fasc_final, game_data_json, timestamp, _ = row
+
+        # Extract policy progression events
+        events = extract_policy_events(game_data_json)
+
+        # If no events from history, reconstruct from final counts
+        if not events and (lib_final > 0 or fasc_final > 0):
             total = lib_final + fasc_final
             events = []
             lib_count = 0
@@ -256,15 +351,32 @@ def create_policy_timeline(games: List[Dict], output_path: str):
         ax.spines['bottom'].set_visible(False)
         ax.spines['left'].set_visible(False)
 
-    # Overall title
+    # Overall title - y=1.02 places it above figure, bbox_inches='tight' captures it
     fig.suptitle('Policy Progression Timeline - Secret Hitler LLM Evaluation',
-                fontsize=16, fontweight='bold', y=0.995)
+                fontsize=16, fontweight='bold', y=1.02)
 
-    # Save figure
+    # Save figure with support for multiple formats
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    plt.savefig(output_path, dpi=300, bbox_inches='tight', facecolor='white')
-    print(f"✓ Policy timeline saved to: {output_path}")
+
+    # Detect format from extension and save appropriately
+    ext = output_path.suffix.lower()
+    if ext in ['.svg', '.pdf', '.eps']:
+        plt.savefig(output_path, format=ext[1:], bbox_inches='tight', facecolor='white')
+    else:
+        plt.savefig(output_path, dpi=300, bbox_inches='tight', facecolor='white')
+
+    print(f"Saved: {output_path}")
+
+    # Also save vector formats for publication if requested
+    if ext == '.png':
+        # Auto-generate SVG and PDF versions
+        svg_path = output_path.with_suffix('.svg')
+        pdf_path = output_path.with_suffix('.pdf')
+        plt.savefig(svg_path, format='svg', bbox_inches='tight', facecolor='white')
+        plt.savefig(pdf_path, format='pdf', bbox_inches='tight', facecolor='white')
+        print(f"Saved: {svg_path}")
+        print(f"Saved: {pdf_path}")
 
     plt.close()
 
@@ -293,6 +405,11 @@ def main():
         default=10,
         help='Maximum number of games to visualize (default: 10)'
     )
+    parser.add_argument(
+        '--interesting', '-i',
+        action='store_true',
+        help='Select interesting games (close games with variety of outcomes)'
+    )
 
     args = parser.parse_args()
 
@@ -300,14 +417,13 @@ def main():
         # Connect to database
         conn = connect_db(args.db)
 
-        # Get games
-        games = get_batch_games(conn, args.batch_id)
-
-        # Limit number of games
-        if len(games) > args.limit:
-            games = games[:args.limit]
-
-        print(f"Found {len(games)} games to visualize")
+        # Get games based on selection mode
+        if args.interesting:
+            games = get_interesting_games(conn, args.limit)
+            print(f"Selected {len(games)} interesting games (mix of liberal/fascist wins)")
+        else:
+            games = get_batch_games(conn, args.batch_id, args.limit)
+            print(f"Found {len(games)} games to visualize")
 
         # Create visualization
         create_policy_timeline(games, args.output)

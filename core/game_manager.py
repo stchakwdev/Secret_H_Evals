@@ -9,6 +9,7 @@ from datetime import datetime
 import uuid
 from enum import Enum
 import logging
+from pathlib import Path
 
 from .game_state import GameState, GamePhase, Role, Policy
 from .game_events import (
@@ -59,15 +60,18 @@ class GameManager:
         self.player_configs = player_configs
         self.game_state = GameState(player_configs, self.game_id)
 
-        # LLM client
-        self.openrouter_client = OpenRouterClient(openrouter_api_key)
-
-        # Logging
+        # Logging - use absolute path to llm-game-engine/logs
+        # Must be created before OpenRouterClient for API request logging
+        logs_dir = Path(__file__).parent.parent / "logs"
         self.logger = GameLogger(
             self.game_id,
+            base_log_dir=str(logs_dir),
             enable_database_logging=enable_database_logging,
             db_path=db_path
         )
+
+        # LLM client - pass logger for API request tracking
+        self.openrouter_client = OpenRouterClient(openrouter_api_key, game_logger=self.logger)
         
         # Prompt templates
         self.prompt_templates = PromptTemplates()
@@ -107,8 +111,9 @@ class GameManager:
         """Initialize context tracking for each player."""
         for player_config in self.player_configs:
             player_id = player_config['id']
+            model = player_config.get('model', 'x-ai/grok-4-fast:free')
             self.player_contexts[player_id] = {
-                'model': player_config.get('model', 'x-ai/grok-4-fast:free'),
+                'model': model,
                 'conversation_history': [],
                 'reasoning_history': [],
                 'trust_beliefs': {},  # Track beliefs about other players
@@ -116,6 +121,8 @@ class GameManager:
                 'last_action_timestamp': None,
                 'player_type': self.player_types[player_id]
             }
+            # Set model in logger for database tracking
+            self.logger.set_player_model(player_id, model)
     
     def _send_spectator_event(self, event: Dict[str, Any]):
         """Send event to spectator interface if callback is available."""
@@ -1308,7 +1315,14 @@ class GameManager:
             "duration": (datetime.now() - self.game_state.created_at).total_seconds(),
             "player_contexts": self.player_contexts
         }
-        
+
+        # Sync cost tracker data to logger before logging game end
+        # This ensures total_cost is captured even if individual API requests weren't logged
+        if hasattr(self.openrouter_client, 'cost_tracker'):
+            cost_tracker = self.openrouter_client.cost_tracker
+            self.logger.metrics["api_usage"]["total_cost"] = cost_tracker.current_game_cost
+            self.logger.metrics["api_usage"]["total_requests"] = len(cost_tracker.requests)
+
         await self.logger.log_game_end(result)
         
         # Export usage log

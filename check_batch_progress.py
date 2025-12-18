@@ -1,7 +1,17 @@
 #!/usr/bin/env python3
 """
-Real-time batch experiment progress tracker.
+Rich Terminal UI Batch Monitor for Secret Hitler LLM Experiments.
+
+Features:
+- Color-coded status indicators
+- Live-updating games table
+- Rich progress bars
+- Activity log with recent events
+- Policy board visualization
+
 Usage: python check_batch_progress.py [--watch]
+
+Author: Samuel Chakwera (stchakdev)
 """
 import os
 import sys
@@ -11,317 +21,636 @@ import time
 import argparse
 import json
 import re
+from collections import deque
 
-def count_games_since(start_time):
-    """Count completed games since start_time."""
-    logs_dir = Path(__file__).parent / "logs"
+from rich.console import Console
+from rich.table import Table
+from rich.panel import Panel
+from rich.progress import Progress, BarColumn, TextColumn, SpinnerColumn
+from rich.live import Live
+from rich.layout import Layout
+from rich.text import Text
+from rich import box
 
-    if not logs_dir.exists():
-        return 0, 0
 
-    total_games = 0
-    completed_games = 0
+# Simple ASCII Art Banner (works in all terminals)
+BANNER = r"""
+[bold red]╔═══════════════════════════════════════════════════════════════════════╗
+║   ___  ____  ___  ____  ____  ____    _  _  ____  ____  __    ____  ____  ║
+║  / __)( ___)/ __)(  _ \( ___)(_  _)  ( )( )(_  _)(_  _)(  )  ( ___)(  _ \ ║
+║  \__ \ )__)( (__  )   / )__)   )(     )__(  _)(_   )(   )(__  )__)  )   / ║
+║  (___/(____)\___)(__)\_)(__)  (__)   (__)__)(____)(__) (____)(____)(_)\_) ║
+╚═══════════════════════════════════════════════════════════════════════════╝[/bold red]
+[bold yellow]              LLM DECEPTION DETECTION EXPERIMENT MONITOR[/bold yellow]
+[dim]                       Strategic AI Behavior Analysis[/dim]
+"""
 
-    for game_dir in logs_dir.iterdir():
-        if not game_dir.is_dir():
-            continue
 
-        game_log = game_dir / "game.log"
-        if not game_log.exists():
-            continue
+class GameState:
+    """Parsed state of a single game."""
 
-        # Check if game started after our start time
-        mtime = datetime.fromtimestamp(game_log.stat().st_mtime)
-        if mtime < start_time:
-            continue
+    def __init__(self, game_dir: Path):
+        self.game_id = game_dir.name
+        self.game_dir = game_dir
+        self.log_path = game_dir / "game.log"
+        self.phase = "unknown"
+        self.turn = 0
+        self.liberal_policies = 0
+        self.fascist_policies = 0
+        self.is_complete = False
+        self.winner = None
+        self.win_condition = None
+        self.president = None
+        self.chancellor = None
+        self.log_lines = 0
+        self.last_modified = None
+        self.start_time = None
+        self.duration = None
+        self.has_error = False
+        self.last_action = None
 
-        total_games += 1
+        self._parse()
 
-        # Check if game completed (look for duration_seconds at end of log)
+    def _parse(self):
+        """Parse game log to extract state."""
+        if not self.log_path.exists():
+            return
+
         try:
-            with open(game_log, 'r') as f:
+            stat = self.log_path.stat()
+            self.last_modified = datetime.fromtimestamp(stat.st_mtime)
+
+            with open(self.log_path, 'r') as f:
                 content = f.read()
-                if 'duration_seconds' in content:
-                    completed_games += 1
-        except Exception:
-            pass
+                self.log_lines = content.count('\n')
 
-    return total_games, completed_games
+            # Extract current phase - prefer "new_phase" from events over initial "phase"
+            new_phase_matches = list(re.finditer(r'"new_phase":\s*"([^"]+)"', content))
+            if new_phase_matches:
+                self.phase = new_phase_matches[-1].group(1)
+            else:
+                # Fallback to action_type for current activity
+                action_matches = list(re.finditer(r'"action_type":\s*"([^"]+)"', content))
+                if action_matches:
+                    self.phase = action_matches[-1].group(1)
+                    self.last_action = action_matches[-1].group(1)
 
-def parse_game_state(game_log_path):
-    """Extract detailed game state from game log."""
-    try:
-        with open(game_log_path, 'r') as f:
-            content = f.read()
+            # Extract turn number
+            turn_matches = list(re.finditer(r'"turn":\s*(\d+)', content))
+            if turn_matches:
+                self.turn = int(turn_matches[-1].group(1))
 
-        # Find the last JSON object containing game state
-        state_pattern = r'"phase":\s*"([^"]+)"'
-        phase_matches = list(re.finditer(state_pattern, content))
-        phase = phase_matches[-1].group(1) if phase_matches else "unknown"
+            # Extract policy counts - IMPROVED: check multiple sources
+            # 1. First try structured policy_board state
+            lib_matches = list(re.finditer(r'"liberal_policies":\s*(\d+)', content))
+            fasc_matches = list(re.finditer(r'"fascist_policies":\s*(\d+)', content))
+            if lib_matches:
+                self.liberal_policies = int(lib_matches[-1].group(1))
+            if fasc_matches:
+                self.fascist_policies = int(fasc_matches[-1].group(1))
 
-        # Extract policy counts
-        lib_pattern = r'"liberal_policies":\s*(\d+)'
-        fasc_pattern = r'"fascist_policies":\s*(\d+)'
-        lib_matches = list(re.finditer(lib_pattern, content))
-        fasc_matches = list(re.finditer(fasc_pattern, content))
+            # 2. If still 0, try to extract from player reasoning text
+            # Look for patterns like "4 Fascist policies" or "3 Liberal policies"
+            if self.fascist_policies == 0:
+                fasc_reasoning = list(re.finditer(r'(\d+)\s+[Ff]ascist\s+polic(?:y|ies)', content))
+                if fasc_reasoning:
+                    # Get the highest mentioned value (most recent game state)
+                    self.fascist_policies = max(int(m.group(1)) for m in fasc_reasoning)
 
-        liberal_policies = int(lib_matches[-1].group(1)) if lib_matches else 0
-        fascist_policies = int(fasc_matches[-1].group(1)) if fasc_matches else 0
+            if self.liberal_policies == 0:
+                lib_reasoning = list(re.finditer(r'(\d+)\s+[Ll]iberal\s+polic(?:y|ies)', content))
+                if lib_reasoning:
+                    self.liberal_policies = max(int(m.group(1)) for m in lib_reasoning)
 
-        # Check for game end and winner
-        game_end_pattern = r'"event":\s*"game_end"'
-        winner_pattern = r'"winner":\s*"([^"]+)"'
-        win_condition_pattern = r'"win_condition":\s*"([^"]+)"'
+            # 3. Also check for policy enactment events
+            lib_enacted = len(re.findall(r'"policy":\s*"liberal"', content, re.IGNORECASE))
+            fasc_enacted = len(re.findall(r'"policy":\s*"fascist"', content, re.IGNORECASE))
+            if lib_enacted > self.liberal_policies:
+                self.liberal_policies = lib_enacted
+            if fasc_enacted > self.fascist_policies:
+                self.fascist_policies = fasc_enacted
 
-        is_complete = bool(re.search(game_end_pattern, content))
-        winner_matches = list(re.finditer(winner_pattern, content))
-        win_cond_matches = list(re.finditer(win_condition_pattern, content))
+            # Check completion
+            if 'duration_seconds' in content or '"event": "game_end"' in content:
+                self.is_complete = True
 
-        winner = None
-        win_condition = None
-        if winner_matches:
-            winner_val = winner_matches[-1].group(1)
-            if winner_val != "null":
-                winner = winner_val
-        if win_cond_matches:
-            win_cond_val = win_cond_matches[-1].group(1)
-            if win_cond_val != "null":
-                win_condition = win_cond_val
+            # Also check for win conditions in content
+            if '"winner":' in content and '"winner": null' not in content:
+                winner_check = re.search(r'"winner":\s*"(liberal|fascist)"', content)
+                if winner_check:
+                    self.is_complete = True
 
-        # Extract government info
-        pres_pattern = r'"president":\s*"([^"]+)"'
-        chan_pattern = r'"chancellor":\s*"([^"]+)"'
-        pres_matches = list(re.finditer(pres_pattern, content))
-        chan_matches = list(re.finditer(chan_pattern, content))
+            # Extract winner
+            winner_matches = list(re.finditer(r'"winner":\s*"([^"]+)"', content))
+            if winner_matches:
+                winner = winner_matches[-1].group(1)
+                if winner not in ["null", ""]:
+                    self.winner = winner
 
-        current_president = None
-        current_chancellor = None
-        if pres_matches:
-            pres_val = pres_matches[-1].group(1)
-            if pres_val not in ["null", ""]:
-                current_president = pres_val
-        if chan_matches:
-            chan_val = chan_matches[-1].group(1)
-            if chan_val not in ["null", ""]:
-                current_chancellor = chan_val
+            # Win condition
+            cond_matches = list(re.finditer(r'"win_condition":\s*"([^"]+)"', content))
+            if cond_matches:
+                cond = cond_matches[-1].group(1)
+                if cond not in ["null", ""]:
+                    self.win_condition = cond
 
-        return {
-            'phase': phase,
-            'liberal_policies': liberal_policies,
-            'fascist_policies': fascist_policies,
-            'is_complete': is_complete,
-            'winner': winner,
-            'win_condition': win_condition,
-            'current_president': current_president,
-            'current_chancellor': current_chancellor
-        }
-    except Exception as e:
-        return None
+            # Government - look for nomination events
+            pres_matches = list(re.finditer(r'"president":\s*"([^"]+)"', content))
+            chan_matches = list(re.finditer(r'"chancellor":\s*"([^"]+)"', content))
+            if pres_matches:
+                pres = pres_matches[-1].group(1)
+                if pres not in ["null", ""]:
+                    self.president = pres
+            if chan_matches:
+                chan = chan_matches[-1].group(1)
+                if chan not in ["null", ""]:
+                    self.chancellor = chan
 
-def get_latest_game_info():
-    """Get info about the most recent game."""
-    logs_dir = Path(__file__).parent / "logs"
+            # Extract start time from first log entry
+            start_matches = list(re.finditer(r'"timestamp":\s*"([^"]+)"', content))
+            if start_matches:
+                try:
+                    self.start_time = datetime.fromisoformat(start_matches[0].group(1).replace('Z', '+00:00'))
+                except:
+                    pass
 
-    if not logs_dir.exists():
-        return None
+            # Calculate duration
+            if self.start_time and self.last_modified:
+                self.duration = (self.last_modified - self.start_time.replace(tzinfo=None)).total_seconds()
 
-    # Find most recently modified game log
-    latest_game = None
-    latest_time = 0
+            # Check for REAL errors only (not the word "error" in reasoning)
+            real_error_patterns = [
+                r'Traceback \(most recent call last\)',
+                r'Exception:',
+                r'ERROR:',
+                r'KeyError:',
+                r'ValueError:',
+                r'TypeError:',
+                r'AttributeError:',
+                r'API.*failed',
+                r'Connection.*refused',
+            ]
+            for pattern in real_error_patterns:
+                if re.search(pattern, content):
+                    self.has_error = True
+                    break
 
-    for game_dir in logs_dir.iterdir():
-        if not game_dir.is_dir():
-            continue
+        except Exception as e:
+            self.has_error = True
 
-        game_log = game_dir / "game.log"
-        if not game_log.exists():
-            continue
 
-        mtime = game_log.stat().st_mtime
-        if mtime > latest_time:
-            latest_time = mtime
-            latest_game = game_dir
+class BatchMonitor:
+    """Rich terminal UI for monitoring batch experiments."""
 
-    if not latest_game:
-        return None
+    def __init__(self):
+        self.console = Console()
+        self.logs_dir = Path(__file__).parent / "logs"
+        self.batch_metadata = None
+        self.start_time = None
+        self.target_games = 100
+        self.activity_log = deque(maxlen=6)
+        self.last_game_count = 0
+        self.last_completed_count = 0
+        self.logged_games = set()
+        self.last_phases = {}  # Track phase changes per game
 
-    game_log = latest_game / "game.log"
+    def show_banner(self):
+        """Display the startup banner."""
+        self.console.print(BANNER)
+        self.console.print()
 
-    # Parse game state
-    try:
-        with open(game_log, 'r') as f:
-            lines = sum(1 for _ in f)
+    def load_batch_metadata(self):
+        """Load batch metadata from .current_batch file."""
+        metadata_file = self.logs_dir / ".current_batch"
+        if metadata_file.exists():
+            try:
+                with open(metadata_file, 'r') as f:
+                    self.batch_metadata = json.load(f)
+                    self.start_time = datetime.strptime(
+                        self.batch_metadata['start_time'],
+                        '%Y-%m-%d %H:%M:%S'
+                    )
+                    self.target_games = self.batch_metadata.get('target_games', 100)
+                    return True
+            except Exception as e:
+                pass
+        return False
 
-        state = parse_game_state(game_log)
-        if not state:
-            state = {'phase': 'unknown', 'is_complete': False}
+    def get_games(self) -> list:
+        """Get all game states sorted by modification time."""
+        if not self.logs_dir.exists():
+            return []
 
-        return {
-            'game_id': latest_game.name,
-            'log_lines': lines,
-            'completed': state['is_complete'],
-            'last_modified': datetime.fromtimestamp(latest_time),
-            **state  # Merge all state fields
-        }
-    except Exception:
-        return None
+        games = []
+        for game_dir in self.logs_dir.iterdir():
+            if not game_dir.is_dir() or game_dir.name.startswith('.'):
+                continue
 
-def estimate_completion(started_games, target_games, elapsed_hours):
-    """Estimate completion time."""
-    if started_games == 0:
-        return "Unknown"
+            game_log = game_dir / "game.log"
+            if not game_log.exists():
+                continue
 
-    games_per_hour = started_games / elapsed_hours if elapsed_hours > 0 else 0
-    if games_per_hour == 0:
-        return "Unknown"
+            # Filter by start time if available
+            if self.start_time:
+                mtime = datetime.fromtimestamp(game_log.stat().st_mtime)
+                if mtime < self.start_time:
+                    continue
 
-    remaining_games = target_games - started_games
-    hours_remaining = remaining_games / games_per_hour
+            games.append(GameState(game_dir))
 
-    return f"{hours_remaining:.1f} hours (~{int(hours_remaining * 60)} minutes)"
+        # Sort by modification time (newest first)
+        games.sort(key=lambda g: g.last_modified or datetime.min, reverse=True)
+        return games
 
-def display_progress(start_time, target_games=100, clear_screen=True):
-    """Display current progress."""
-    if clear_screen:
-        os.system('clear' if os.name != 'nt' else 'cls')
+    def format_duration(self, seconds: float) -> str:
+        """Format duration as MM:SS or HH:MM:SS."""
+        if seconds is None:
+            return "--:--"
+        minutes, secs = divmod(int(seconds), 60)
+        hours, minutes = divmod(minutes, 60)
+        if hours > 0:
+            return f"{hours}:{minutes:02d}:{secs:02d}"
+        return f"{minutes:02d}:{secs:02d}"
 
-    started, completed = count_games_since(start_time)
-    elapsed = datetime.now() - start_time
-    elapsed_hours = elapsed.total_seconds() / 3600
+    def create_header(self, games: list) -> Panel:
+        """Create header panel with batch info."""
+        completed = sum(1 for g in games if g.is_complete)
+        elapsed = datetime.now() - self.start_time if self.start_time else None
 
-    latest_game = get_latest_game_info()
+        # Calculate ETA
+        eta_str = "Calculating..."
+        rate_str = "0.0"
+        if completed > 0 and elapsed:
+            elapsed_hours = elapsed.total_seconds() / 3600
+            rate = completed / elapsed_hours if elapsed_hours > 0 else 0
+            rate_str = f"{rate:.1f}"
+            if rate > 0:
+                remaining = self.target_games - completed
+                eta_time = datetime.now() + (elapsed * (remaining / completed)) if completed > 0 else None
+                if eta_time:
+                    eta_str = eta_time.strftime('%H:%M:%S')
 
-    print("=" * 70)
-    print("SECRET HITLER BATCH EXPERIMENT PROGRESS")
-    print("=" * 70)
-    print(f"\nBatch started: {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
-    print(f"Elapsed time:  {int(elapsed.total_seconds() / 60)} minutes ({elapsed_hours:.2f} hours)")
-    print()
-    print(f"Games started:   {started}/{target_games} ({started/target_games*100:.1f}%)")
-    print(f"Games completed: {completed}/{target_games} ({completed/target_games*100:.1f}%)")
-    print()
+        batch_tag = self.batch_metadata.get('batch_tag', 'Unknown') if self.batch_metadata else 'Unknown'
+        model = self.batch_metadata.get('model', 'Unknown') if self.batch_metadata else 'Unknown'
 
-    # Progress bar
-    progress = started / target_games
-    bar_length = 50
-    filled = int(bar_length * progress)
-    bar = '█' * filled + '░' * (bar_length - filled)
-    print(f"Progress: [{bar}] {progress*100:.1f}%")
-    print()
+        # Truncate model name
+        if len(model) > 30:
+            model = model[:27] + "..."
 
-    # Rate and ETA
-    if started > 0 and elapsed_hours > 0:
-        rate = started / elapsed_hours
-        print(f"Rate: {rate:.2f} games/hour ({rate/60:.2f} games/minute)")
+        header_text = Text()
+        header_text.append("Batch: ", style="dim")
+        header_text.append(batch_tag, style="cyan bold")
+        header_text.append(" | Model: ", style="dim")
+        header_text.append(model, style="cyan")
+        header_text.append("\n")
 
-        remaining = target_games - started
-        eta_hours = remaining / rate
-        eta_time = datetime.now() + (datetime.now() - start_time) * (remaining / started) if started > 0 else None
+        if elapsed:
+            elapsed_str = self.format_duration(elapsed.total_seconds())
+            header_text.append("Started: ", style="dim")
+            header_text.append(self.start_time.strftime('%H:%M:%S'), style="white")
+            header_text.append(" | Elapsed: ", style="dim")
+            header_text.append(elapsed_str, style="white")
+            header_text.append(" | Rate: ", style="dim")
+            header_text.append(f"{rate_str}/hr", style="green")
+            header_text.append(" | ETA: ", style="dim")
+            header_text.append(eta_str, style="yellow")
 
-        if eta_time:
-            print(f"ETA:  {eta_time.strftime('%Y-%m-%d %H:%M:%S')} ({eta_hours:.1f} hours remaining)")
-    print()
+        return Panel(
+            header_text,
+            title="[bold blue]SECRET HITLER BATCH MONITOR[/bold blue]",
+            border_style="blue",
+            box=box.DOUBLE
+        )
 
-    # Latest game info
-    if latest_game:
-        print("Latest Game:")
-        print(f"  ID: {latest_game['game_id'][:16]}...")
-        status_icon = '✓ Completed' if latest_game['completed'] else '⏳ In Progress'
-        print(f"  Status: {status_icon}")
+    def create_progress_bar(self, games: list) -> Text:
+        """Create a text-based progress bar."""
+        completed = sum(1 for g in games if g.is_complete)
+        progress = completed / self.target_games if self.target_games > 0 else 0
 
-        # Show game state details
-        phase = latest_game.get('phase', 'unknown').replace('_', ' ').title()
-        print(f"  Phase: {phase}")
+        bar_width = 40
+        filled = int(bar_width * progress)
+        bar = "━" * filled + "╺" + "─" * max(0, bar_width - filled - 1)
 
-        # Policy board
-        lib_pol = latest_game.get('liberal_policies', 0)
-        fasc_pol = latest_game.get('fascist_policies', 0)
-        lib_bar = '🔵' * lib_pol + '⚪' * (5 - lib_pol)
-        fasc_bar = '🔴' * fasc_pol + '⚪' * (6 - fasc_pol)
-        print(f"  Policies: Liberal {lib_bar} ({lib_pol}/5) | Fascist {fasc_bar} ({fasc_pol}/6)")
+        text = Text()
+        text.append("Progress ", style="dim")
+        text.append(bar, style="green" if progress > 0.5 else "yellow")
+        text.append(f" {progress*100:.0f}% ", style="bold")
+        text.append(f"{completed}/{self.target_games} games", style="dim")
 
-        # Government
-        if latest_game.get('current_president') or latest_game.get('current_chancellor'):
-            pres = latest_game.get('current_president', 'None')
-            chan = latest_game.get('current_chancellor', 'None')
-            print(f"  Government: President={pres}, Chancellor={chan}")
+        return text
 
-        # Winner info if game completed
-        if latest_game['completed']:
-            winner = latest_game.get('winner', 'Unknown')
-            win_condition = latest_game.get('win_condition', 'Unknown')
-            if winner:
-                win_cond_display = win_condition.replace('_', ' ').title() if win_condition else 'Unknown'
-                print(f"  Winner: {winner} ({win_cond_display})")
+    def create_games_table(self, games: list) -> Table:
+        """Create table showing recent games."""
+        table = Table(
+            title="Recent Games",
+            box=box.ROUNDED,
+            show_header=True,
+            header_style="bold cyan",
+            border_style="dim",
+            expand=True
+        )
 
-        print(f"  Log lines: {latest_game['log_lines']:,}")
-        print(f"  Last update: {latest_game['last_modified'].strftime('%H:%M:%S')}")
+        table.add_column("#", style="dim", width=3, justify="right")
+        table.add_column("Status", width=12)
+        table.add_column("Phase/Result", width=16)
+        table.add_column("Turn", width=5, justify="center")
+        table.add_column("Time", width=8, justify="center")
+        table.add_column("Policies", width=18)
 
-    print("=" * 70)
-    print("\nPress Ctrl+C to stop watching")
+        # Show last 5 games
+        for i, game in enumerate(games[:5], 1):
+            # Status - fixed error detection
+            if game.is_complete:
+                status = Text("Complete", style="green bold")
+            elif game.has_error:
+                status = Text("Error", style="red bold")
+            else:
+                status = Text("Running", style="yellow")
 
-def load_current_batch():
-    """Load batch metadata from logs/.current_batch file."""
-    metadata_file = Path(__file__).parent / "logs" / ".current_batch"
+            # Result/Phase
+            if game.is_complete and game.winner:
+                if 'liberal' in game.winner.lower():
+                    result = Text("Liberal Win", style="blue bold")
+                else:
+                    result = Text("Fascist Win", style="red bold")
+            elif not game.is_complete:
+                phase = game.phase.replace('_', ' ').title()
+                if len(phase) > 14:
+                    phase = phase[:13] + "..."
+                result = Text(phase, style="white")
+            else:
+                result = Text("Unknown", style="dim")
 
-    if not metadata_file.exists():
-        return None
+            # Turn
+            turn = Text(str(game.turn) if game.turn > 0 else "-", style="white")
 
-    try:
-        with open(metadata_file, 'r') as f:
-            return json.load(f)
-    except Exception as e:
-        print(f"Warning: Could not read batch metadata: {e}")
-        return None
+            # Time
+            duration = self.format_duration(game.duration)
+
+            # Policies - visual representation with numbers
+            lib = game.liberal_policies
+            fasc = game.fascist_policies
+
+            lib_filled = "●" * min(lib, 5)
+            lib_empty = "○" * max(0, 5 - lib)
+            fasc_filled = "●" * min(fasc, 6)
+            fasc_empty = "○" * max(0, 6 - fasc)
+
+            policies = Text()
+            policies.append(lib_filled, style="blue bold")
+            policies.append(lib_empty, style="blue dim")
+            policies.append(" ", style="dim")
+            policies.append(fasc_filled, style="red bold")
+            policies.append(fasc_empty, style="red dim")
+
+            table.add_row(
+                str(i),
+                status,
+                result,
+                turn,
+                duration,
+                policies
+            )
+
+            # Add government info for running games
+            if not game.is_complete and (game.president or game.chancellor):
+                gov_text = Text()
+                gov_text.append("  Gov: ", style="dim")
+                if game.president:
+                    gov_text.append(game.president[:10], style="cyan")
+                gov_text.append(" → ", style="dim")
+                if game.chancellor:
+                    gov_text.append(game.chancellor[:10], style="cyan")
+                table.add_row("", "", gov_text, "", "", "")
+
+        return table
+
+    def create_activity_log(self) -> Panel:
+        """Create activity log panel."""
+        if not self.activity_log:
+            log_text = Text("Waiting for game activity...", style="dim italic")
+        else:
+            log_text = Text()
+            for entry in list(self.activity_log):
+                log_text.append(entry + "\n")
+
+        return Panel(
+            log_text,
+            title="[bold]Activity Log[/bold]",
+            border_style="dim",
+            box=box.ROUNDED,
+            height=8
+        )
+
+    def update_activity(self, games: list):
+        """Update activity log with new events."""
+        time_str = datetime.now().strftime('%H:%M:%S')
+
+        # Track new games starting
+        if len(games) > self.last_game_count:
+            new_count = len(games) - self.last_game_count
+            self.activity_log.append(
+                f"[dim]{time_str}[/dim] [green]Game {len(games)} started[/green]"
+            )
+
+        # Log completed games
+        completed_count = sum(1 for g in games if g.is_complete)
+        if completed_count > self.last_completed_count:
+            for game in games:
+                if game.is_complete and game.game_id not in self.logged_games:
+                    winner = game.winner or "Unknown"
+                    style = "blue" if 'liberal' in winner.lower() else "red"
+                    duration = self.format_duration(game.duration)
+
+                    # Add win condition if available
+                    win_info = ""
+                    if game.win_condition:
+                        win_info = f" ({game.win_condition.replace('_', ' ')})"
+
+                    self.activity_log.append(
+                        f"[dim]{time_str}[/dim] [{style}]{winner.title()} win{win_info}[/{style}] {duration}"
+                    )
+                    self.logged_games.add(game.game_id)
+
+        # Log phase changes for running games
+        for game in games:
+            if not game.is_complete:
+                prev_phase = self.last_phases.get(game.game_id)
+                if prev_phase and prev_phase != game.phase:
+                    phase_name = game.phase.replace('_', ' ').title()
+                    if 'legislative' in game.phase.lower():
+                        self.activity_log.append(
+                            f"[dim]{time_str}[/dim] [yellow]Legislative session[/yellow] ({game.president} → {game.chancellor})"
+                        )
+                    elif 'nomination' in game.phase.lower():
+                        self.activity_log.append(
+                            f"[dim]{time_str}[/dim] [cyan]New nomination[/cyan]"
+                        )
+                    elif 'vote' in game.phase.lower():
+                        self.activity_log.append(
+                            f"[dim]{time_str}[/dim] [white]Voting...[/white]"
+                        )
+                self.last_phases[game.game_id] = game.phase
+
+        self.last_completed_count = completed_count
+        self.last_game_count = len(games)
+
+    def create_layout(self, games: list) -> Layout:
+        """Create the full dashboard layout."""
+        layout = Layout()
+
+        layout.split_column(
+            Layout(name="header", size=6),
+            Layout(name="progress", size=3),
+            Layout(name="games", size=14),
+            Layout(name="activity", size=8),
+            Layout(name="footer", size=1)
+        )
+
+        layout["header"].update(self.create_header(games))
+        layout["progress"].update(Panel(self.create_progress_bar(games), box=box.SIMPLE))
+        layout["games"].update(self.create_games_table(games))
+        layout["activity"].update(self.create_activity_log())
+
+        footer_text = Text()
+        footer_text.append("Press ", style="dim")
+        footer_text.append("Ctrl+C", style="bold yellow")
+        footer_text.append(" to exit | Last update: ", style="dim")
+        footer_text.append(datetime.now().strftime('%H:%M:%S'), style="white")
+        layout["footer"].update(footer_text)
+
+        return layout
+
+    def show_completion_banner(self, games: list):
+        """Show a big completion banner with summary."""
+        completed = sum(1 for g in games if g.is_complete)
+        liberal_wins = sum(1 for g in games if g.is_complete and g.winner and 'liberal' in g.winner.lower())
+        fascist_wins = completed - liberal_wins
+
+        elapsed = datetime.now() - self.start_time if self.start_time else None
+        elapsed_str = self.format_duration(elapsed.total_seconds()) if elapsed else "Unknown"
+
+        # Ring terminal bell
+        print('\a')  # Terminal bell
+
+        banner = f"""
+[bold green]
+╔═══════════════════════════════════════════════════════════════════════╗
+║                                                                       ║
+║   ██████╗  █████╗ ████████╗ ██████╗██╗  ██╗                          ║
+║   ██╔══██╗██╔══██╗╚══██╔══╝██╔════╝██║  ██║                          ║
+║   ██████╔╝███████║   ██║   ██║     ███████║                          ║
+║   ██╔══██╗██╔══██║   ██║   ██║     ██╔══██║                          ║
+║   ██████╔╝██║  ██║   ██║   ╚██████╗██║  ██║                          ║
+║   ╚═════╝ ╚═╝  ╚═╝   ╚═╝    ╚═════╝╚═╝  ╚═╝                          ║
+║                                                                       ║
+║    ██████╗ ██████╗ ███╗   ███╗██████╗ ██╗     ███████╗████████╗███████╗║
+║   ██╔════╝██╔═══██╗████╗ ████║██╔══██╗██║     ██╔════╝╚══██╔══╝██╔════╝║
+║   ██║     ██║   ██║██╔████╔██║██████╔╝██║     █████╗     ██║   █████╗  ║
+║   ██║     ██║   ██║██║╚██╔╝██║██╔═══╝ ██║     ██╔══╝     ██║   ██╔══╝  ║
+║   ╚██████╗╚██████╔╝██║ ╚═╝ ██║██║     ███████╗███████╗   ██║   ███████╗║
+║    ╚═════╝ ╚═════╝ ╚═╝     ╚═╝╚═╝     ╚══════╝╚══════╝   ╚═╝   ╚══════╝║
+║                                                                       ║
+╚═══════════════════════════════════════════════════════════════════════╝
+[/bold green]
+
+[bold white]                    🎮 BATCH EXPERIMENT FINISHED 🎮[/bold white]
+
+[bold cyan]═══════════════════════════════════════════════════════════════════════[/bold cyan]
+
+  [bold]Total Games:[/bold]     {completed}
+  [bold]Duration:[/bold]        {elapsed_str}
+
+  [blue bold]Liberal Wins:[/blue bold]    {liberal_wins} ({liberal_wins/completed*100:.0f}%)
+  [red bold]Fascist Wins:[/red bold]    {fascist_wins} ({fascist_wins/completed*100:.0f}%)
+
+[bold cyan]═══════════════════════════════════════════════════════════════════════[/bold cyan]
+
+[dim]Results saved to database. Run analysis with:[/dim]
+[yellow]  python -m analytics.statistical_analysis[/yellow]
+
+"""
+        self.console.print(banner)
+
+    def run(self, watch: bool = True, interval: int = 3):
+        """Run the batch monitor."""
+        # Show banner
+        self.show_banner()
+
+        if not self.load_batch_metadata():
+            self.console.print("[red]No batch metadata found![/red]")
+            self.console.print("[dim]Run a batch first with:[/dim] python run_game.py --batch --games N")
+            return
+
+        self.console.print(f"[green]Loaded batch:[/green] {self.batch_metadata.get('batch_tag', 'Unknown')}")
+        self.console.print(f"[dim]Target: {self.target_games} games | Refresh: {interval}s[/dim]\n")
+        time.sleep(1)
+
+        batch_completed = False
+
+        if watch:
+            try:
+                with Live(console=self.console, refresh_per_second=1, screen=True) as live:
+                    while True:
+                        games = self.get_games()
+                        self.update_activity(games)
+                        live.update(self.create_layout(games))
+
+                        # Check for batch completion
+                        completed = sum(1 for g in games if g.is_complete)
+                        if completed >= self.target_games and not batch_completed:
+                            batch_completed = True
+                            # Add completion to activity log
+                            time_str = datetime.now().strftime('%H:%M:%S')
+                            self.activity_log.append(
+                                f"[dim]{time_str}[/dim] [bold green]🎉 BATCH COMPLETE! {completed}/{self.target_games} games[/bold green]"
+                            )
+                            # Ring bell multiple times
+                            for _ in range(3):
+                                print('\a', end='', flush=True)
+                                time.sleep(0.3)
+
+                        time.sleep(interval)
+            except KeyboardInterrupt:
+                pass
+
+            # Show completion summary if batch finished
+            games = self.get_games()
+            completed = sum(1 for g in games if g.is_complete)
+            if completed >= self.target_games:
+                self.show_completion_banner(games)
+            else:
+                self.console.print("\n[yellow]Monitoring stopped.[/yellow]")
+        else:
+            games = self.get_games()
+            completed = sum(1 for g in games if g.is_complete)
+            if completed >= self.target_games:
+                self.show_completion_banner(games)
+            else:
+                self.console.print(self.create_layout(games))
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Track batch experiment progress')
-    parser.add_argument('--watch', action='store_true', help='Watch progress in real-time')
-    parser.add_argument('--start-time', type=str, help='Batch start time (YYYY-MM-DD HH:MM:SS) - auto-detected if not provided')
-    parser.add_argument('--target', type=int, help='Target number of games - auto-detected if not provided')
-    parser.add_argument('--interval', type=int, help='Update interval in seconds (watch mode)', default=5)
-    parser.add_argument('--batch-id', type=str, help='Track specific batch by ID (uses latest if not provided)')
+    parser = argparse.ArgumentParser(
+        description='Secret Hitler LLM Experiment Monitor',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  python check_batch_progress.py --watch        # Live monitoring
+  python check_batch_progress.py                # Single snapshot
+  python check_batch_progress.py --interval 5   # Slower refresh (5 seconds)
+        """
+    )
+    parser.add_argument('--watch', '-w', action='store_true',
+                        help='Watch progress in real-time')
+    parser.add_argument('--interval', '-i', type=int, default=3,
+                        help='Update interval in seconds (default: 3)')
 
     args = parser.parse_args()
 
-    # Try to load batch metadata
-    batch_metadata = load_current_batch()
+    monitor = BatchMonitor()
+    monitor.run(watch=args.watch, interval=args.interval)
 
-    # Determine start_time and target_games
-    if args.start_time:
-        start_time = datetime.strptime(args.start_time, '%Y-%m-%d %H:%M:%S')
-    elif batch_metadata:
-        start_time = datetime.strptime(batch_metadata['start_time'], '%Y-%m-%d %H:%M:%S')
-        print(f"Auto-detected batch: {batch_metadata.get('batch_id', 'Unknown')}")
-        if batch_metadata.get('batch_tag'):
-            print(f"Batch tag: {batch_metadata['batch_tag']}")
-    else:
-        print("Error: No --start-time provided and no batch metadata found in logs/.current_batch")
-        print("Run a batch with run_game.py --batch first, or specify --start-time manually")
-        sys.exit(1)
-
-    if args.target:
-        target_games = args.target
-    elif batch_metadata:
-        target_games = batch_metadata['target_games']
-    else:
-        target_games = 100  # Default fallback
-
-    if args.watch:
-        print("Starting real-time progress tracker...")
-        print(f"Monitoring games since {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
-        print()
-
-        try:
-            while True:
-                display_progress(start_time, target_games, clear_screen=True)
-                time.sleep(args.interval)
-        except KeyboardInterrupt:
-            print("\n\nStopped monitoring.")
-            display_progress(start_time, target_games, clear_screen=False)
-    else:
-        display_progress(start_time, target_games, clear_screen=False)
 
 if __name__ == '__main__':
     main()
