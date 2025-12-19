@@ -6,7 +6,7 @@
 
 Multi-agent strategic deception evaluation for large language models using Secret Hitler as a testbed. This framework enables researchers to study AI reasoning, trust dynamics, and deceptive behavior patterns in a controlled game environment.
 
-**Author**: Samuel Chakwera ([stchakwdev](https://github.com/stchakwdev))
+**Author**: Samuel T. Chakwera ([stchakwdev](https://github.com/stchakwdev))
 
 ---
 
@@ -107,6 +107,20 @@ python run_game.py --players 7 --model anthropic/claude-3.5-sonnet
 ![Deception Summary](docs/images/deception_summary.png)
 *Deception analysis by decision type and player role*
 
+### Generate Publication Assets
+
+```bash
+# Generate all visual assets (diagrams, GIFs, screenshots)
+python scripts/generate_assets.py --all
+
+# Generate specific asset types
+python scripts/generate_assets.py --diagrams    # Pipeline and architecture diagrams
+python scripts/generate_assets.py --gifs        # Animated visualizations
+python scripts/generate_assets.py --screenshots # Dashboard captures
+```
+
+Generated assets are saved to `assets/` directory for use in publications and presentations.
+
 ## Features
 
 ### Core Capabilities
@@ -141,29 +155,56 @@ Secret_H_Evals/
 ├── agents/             # LLM integration layer
 │   ├── openrouter_client.py  # API client with retry logic
 │   └── prompt_templates.py   # Decision prompts by game phase
+├── analysis/           # Statistical and behavioral analysis
+│   ├── core/           # Statistical utilities and streaming
+│   ├── deception/      # Deception detection and calibration
+│   ├── social/         # Coalition and temporal analysis
+│   ├── models/         # Model comparison and hypothesis testing
+│   └── visualization/  # Publication-quality figure generation
 ├── evaluation/         # Research output tools
 │   ├── database_schema.py    # SQLite schema for game logging
 │   └── inspect_adapter.py    # Inspect AI format export
 ├── dashboard/          # Interactive visualization
 │   └── app.py          # Plotly Dash application
-├── analytics/          # Statistical analysis
-│   └── deception_detector.py # Deception scoring algorithms
+├── docs/               # Comprehensive documentation
+│   ├── tutorials/      # Step-by-step guides
+│   ├── api/            # Module reference documentation
+│   └── research/       # Methodology and findings
 ├── scripts/            # Utility scripts
-│   ├── create_batch_summary.py
-│   └── analyze_with_inspect.py
+│   ├── generate_assets.py    # Auto-generate diagrams and GIFs
+│   └── export_publication_figures.py
+├── assets/             # Generated visual assets
+│   ├── diagrams/       # Pipeline and architecture diagrams
+│   ├── gifs/           # Animated visualizations
+│   └── screenshots/    # Dashboard captures
 └── run_game.py         # Main entry point
 ```
 
 ## Documentation
 
+### Getting Started
+- [Installation & Quick Start](docs/getting-started.md) - Prerequisites and setup guide
 - [CHANGELOG.md](CHANGELOG.md) - Version history
-- [evaluation/README.md](evaluation/README.md) - Inspect AI integration
+
+### Tutorials
+- [Running Experiments](docs/tutorials/running-experiments.md) - Single games, batch runs, and parallel execution
+- [Analyzing Results](docs/tutorials/analyzing-results.md) - Using the dashboard and analysis tools
+- [Adding Custom Models](docs/tutorials/custom-models.md) - Integrating new LLMs via OpenRouter
+
+### API Reference
+- [Analysis Module](docs/api/analysis.md) - Statistical and deception detection APIs
+- [Game Engine](docs/api/game-engine.md) - Core game mechanics and state management
+- [Agents](docs/api/agents.md) - LLM integration and prompt templates
+
+### Research
+- [Methodology](docs/research/methodology.md) - Experimental design and metrics framework
+- [Key Findings](docs/research/findings.md) - Results from 300-game evaluation
 
 ## Citation
 
 ```bibtex
 @software{chakwera2025secrethitler,
-  author = {Chakwera, Samuel},
+  author = {Chakwera, Samuel T.},
   title = {Secret Hitler LLM Evaluation Framework},
   year = {2025},
   url = {https://github.com/stchakwdev/Secret_H_Evals}
@@ -172,6 +213,7 @@ Secret_H_Evals/
 
 ## Recent Updates
 
+- **v2.0.0** - Major restructure: `analysis/` module with subpackages, comprehensive documentation, asset generation
 - **v1.5.0** - Full analytics integration with Plotly dashboard
 - **v1.4.0** - Multi-model comparison framework
 - **v1.3.0** - Parallel batch execution support
@@ -191,7 +233,7 @@ This project is licensed under [CC BY-NC-SA 4.0](https://creativecommons.org/lic
 
 ## Contact
 
-Samuel Chakwera - [@stchakwdev](https://github.com/stchakwdev)
+Samuel T. Chakwera - [@stchakwdev](https://github.com/stchakwdev)
 
 ---
 

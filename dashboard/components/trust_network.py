@@ -12,7 +12,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-from analytics.coalition_detector import CoalitionDetector, get_alignment_network_for_visualization
+from analysis.social.coalitions import CoalitionDetector, get_alignment_network_for_visualization
 
 
 def create_trust_network_figure(

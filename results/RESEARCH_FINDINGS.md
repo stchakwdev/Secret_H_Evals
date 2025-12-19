@@ -1,7 +1,7 @@
 # Research Findings: LLM Strategic Deception Evaluation
 
 **Framework**: Secret Hitler LLM Evaluation System
-**Author**: Samuel Chakwera ([stchakdev](https://github.com/stchakwdev))
+**Author**: Samuel T. Chakwera ([stchakdev](https://github.com/stchakwdev))
 **Dataset**: 225 complete games, 334 total games analyzed
 **Model**: DeepSeek V3.2 Exp (primary), with 11 models configured for multi-model comparison
 **Analysis Period**: October 2025 - November 2025
@@ -425,4 +425,4 @@ If you use this framework or findings in your research, please cite:
 Framework based on the Secret Hitler board game by Goat, Wolf, & Cabbage LLC.
 Original web implementation: [cozuya/secret-hitler](https://github.com/cozuya/secret-hitler)
 
-**Contact**: Samuel Chakwera | GitHub: [@stchakwdev](https://github.com/stchakwdev)
+**Contact**: Samuel T. Chakwera | GitHub: [@stchakwdev](https://github.com/stchakwdev)

@@ -30,7 +30,7 @@ from .components.model_comparison import create_model_comparison_figure
 
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from analytics import (
+from analysis import (
     calculate_proportion_ci,
     summarize_game_statistics,
     format_ci_for_display,

@@ -28,13 +28,13 @@ import pandas as pd
 # Add parent directory for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from analytics.statistical_analysis import (
+from analysis.core.statistical import (
     calculate_proportion_ci,
     calculate_confidence_interval,
     chi_square_test_proportions,
     significance_stars,
 )
-from scripts.visualization_utils import (
+from analysis.visualization.utils import (
     apply_publication_style,
     save_figure,
     get_color,
